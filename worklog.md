@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 4 complete — Admin analytics charts (Recharts), streak freeze auto-consume logic, shop purchase API, all APIs curl-verified**
+**Status: ✅ Phase 5 complete — Achievement auto-unlock system + weekly league promotion/demotion, 15 retroactive achievements unlocked, all verified via scripts**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -300,3 +300,90 @@ The dev server experienced OOM (out-of-memory) kills during agent-browser testin
 4. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
 5. **Achievement auto-unlock** — check conditions on lesson complete + toast notifications
 6. **More vocabulary content** — expand to 200+ words with richer categories
+
+---
+
+## Phase 5 (Cron Review Round 4) — Achievement Auto-Unlock + Weekly League Reset
+
+### QA Methodology
+- Tested core APIs via curl (login, user stats, courses)
+- **Key bug found**: The demo user had 1 completed lesson but 0 achievements unlocked, despite the "first-lesson" achievement (requirement: `lessons-completed: 1`) existing in the database. The lesson completion API granted XP/gems/streak but **never evaluated or unlocked achievements**.
+- Dev server continues to experience OOM kills during agent-browser testing (4GB sandbox limit); verified via curl and direct scripts instead.
+
+### Bugs Found & Fixed
+
+1. **CRITICAL: Achievements never auto-unlocked** — The `/api/lessons/complete` and `/api/vocabulary/review` endpoints granted rewards but never checked achievement conditions. Users could complete 50 lessons and never earn the "First Steps" achievement. **Fix**: Created `src/lib/achievements.ts` with a `checkAndUnlockAchievements(userId)` function that:
+   - Gathers user stats (lessons completed, streak, gems, level, vocab learned, perfect lessons)
+   - Parses each achievement's requirement JSON
+   - Compares current stats against the threshold
+   - Creates `UserAchievement` records for newly-earned achievements
+   - Grants +10 bonus gems per unlock
+   - Returns the list of newly unlocked achievements (for client toast notifications)
+   - Is idempotent (skips already-unlocked achievements)
+
+   Integrated into both the lesson complete and vocabulary review APIs. The response now includes `achievementsUnlocked: [{slug, titleBn, icon, color}]`.
+
+2. **Retroactive unlock for existing users** — Existing users who had already earned achievements never received them. **Fix**: Created `prisma/retroactive-achievements.ts` script that runs `checkAndUnlockAchievements` for all users. Result: **15 achievements unlocked across 9 users**:
+   - Administrator: +5 (Week Warrior, Monthly Devotion, Gem Collector, Rising Scholar, Quranic Seeker)
+   - রহমান লার্নার (demo): +3 (First Steps, Gem Collector, Flawless)
+   - 7 bot users: +1 each (various)
+
+### New Features Added
+
+#### 1. Achievement Auto-Unlock System (`src/lib/achievements.ts`)
+- Supports 6 requirement types: `lessons-completed`, `streak`, `gems`, `level`, `vocab-learned`, `perfect-lesson`
+- Called automatically after every lesson completion and vocabulary review
+- Grants +10 bonus gems per achievement unlock
+- Returns newly unlocked list for client-side toast notifications
+
+#### 2. Achievement Unlock Toast Notifications
+- Lesson screen: After completing a lesson, shows `🏆 অর্জন আনলক! {title}` toast for each newly unlocked achievement (5-second duration, achievement icon)
+- Vocabulary screen: Same toast after each vocabulary review
+- Uses Sonner toast library with custom icon and Bengali text
+
+#### 3. Weekly League Promotion/Demotion (`/api/admin/league-reset`)
+New admin API endpoint that performs the weekly league reset:
+- Promotes top 3 users (by weekly XP) in each league to the next league (Bronze→Silver→Gold→Platinum→Diamond→Pearl)
+- Demotes bottom 3 users to the previous league
+- Resets all users' `weeklyXp` to 0
+- Skips users with 0 weekly XP for promotion (inactive users don't get promoted)
+- Returns a summary with promotion/demotion counts and details
+
+#### 4. Admin League Reset Card
+New UI component in the admin overview tab:
+- Aurora gradient card with RefreshCw icon
+- "সাপ্তাহিক লিগ রিসেট" button with confirmation dialog
+- Shows promotion/demotion counts after reset
+- Invalidates admin stats, analytics, and leaderboard queries on success
+- Spinning icon during reset
+
+#### 5. Achievements Screen Progress Banner
+- New gradient-gold hero banner at the top of the achievements screen
+- Shows trophy icon, "দারুণ অগ্রগতি!" message, unlocked count, and percentage
+- Animated entrance + floating trophy
+- Only shows when user has at least 1 unlocked achievement
+- Percentage now shown in the header subtitle too
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Achievement logic verified via direct script: demo user has 3 achievements (First Steps, Gem Collector, Flawless), re-running check returns 0 newly unlocked (idempotent)
+- ✅ Retroactive script: 15 achievements unlocked across 9 users, each granting +10 bonus gems
+- ✅ `/api/auth/me` returns updated achievement data
+- ✅ `/api/user/stats` shows 3 achievements for demo user (was 0 before)
+- ✅ Lesson complete API response now includes `achievementsUnlocked` array
+- ✅ Vocabulary review API response now includes `achievementsUnlocked` array
+
+### Architecture
+- `src/lib/achievements.ts` — single-responsibility achievement evaluation module, reusable across APIs
+- Typed `Requirement` union for type-safe requirement parsing
+- `checkAndUnlockAchievements(userId)` returns `AchievementCheckResult` with unlocked list
+- League reset logic isolated in `/api/admin/league-reset` with `requireAdmin()` guard
+- Client toast notifications use achievement icon + Bengali title from the API response
+
+### Recommended Next Focus (Phase 6)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **More vocabulary content** — expand to 200+ words with richer categories
+5. **Achievement notifications on profile/achievements screen** — "NEW" badge for recently unlocked
+6. **League reset scheduling** — auto-run weekly via cron (currently manual admin button)

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { checkAndUnlockAchievements } from "@/lib/achievements";
 
 const completeSchema = z.object({
   lessonId: z.string(),
@@ -140,9 +141,13 @@ export const POST = apiHandler(async (req) => {
     });
   }
 
+  // Check & unlock achievements (returns newly unlocked for client toasts)
+  const achievementResult = await checkAndUnlockAchievements(session.id);
+
   return ok({
     progress,
     rewards: { xp: xpGained, gems: gemGained, stars: bestStars },
     nextLessonId,
+    achievementsUnlocked: achievementResult.unlocked,
   });
 });

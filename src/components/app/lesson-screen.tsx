@@ -833,6 +833,15 @@ function LessonComplete({
           xp: (user?.xp ?? 0) + res.rewards.xp,
           totalXp: (user?.totalXp ?? 0) + res.rewards.xp,
         });
+        // Show achievement unlock toasts
+        if (res.achievementsUnlocked && res.achievementsUnlocked.length > 0) {
+          for (const ach of res.achievementsUnlocked) {
+            toast.success(`🏆 অর্জন আনলক! ${ach.titleBn}`, {
+              duration: 5000,
+              icon: ach.icon,
+            });
+          }
+        }
       } catch (e) {
         toast.error((e as Error).message);
       } finally {

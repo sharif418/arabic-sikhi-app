@@ -45,6 +45,12 @@ export function VocabularyScreen() {
     try {
       const res = await api.vocabulary.review(card.id, quality);
       if (res.xpAwarded > 0) addXp(res.xpAwarded);
+      // Show achievement unlock toasts
+      if (res.achievementsUnlocked && res.achievementsUnlocked.length > 0) {
+        for (const ach of res.achievementsUnlocked) {
+          toast.success(`🏆 অর্জন আনলক! ${ach.titleBn}`, { duration: 5000, icon: ach.icon });
+        }
+      }
       setReviewed((r) => r + 1);
       setFlipped(false);
       if (index + 1 < cards.length) {

@@ -16,6 +16,7 @@ export function AchievementsScreen() {
   const unlocked = new Map(statsData?.achievements.map((a) => [a.slug, a.unlockedAt]));
   const all = allData?.achievements ?? [];
   const unlockedCount = all.filter((a) => unlocked.has(a.slug)).length;
+  const pct = all.length ? Math.round((unlockedCount / all.length) * 100) : 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -27,17 +28,40 @@ export function AchievementsScreen() {
         </button>
         <div className="flex-1">
           <h1 className="font-bengali text-base font-bold">অর্জনসমূহ</h1>
-          <p className="text-[11px] text-muted-foreground">{unlockedCount} / {all.length} আনলক করা</p>
+          <p className="text-[11px] text-muted-foreground">{unlockedCount} / {all.length} আনলক করা · {pct}%</p>
         </div>
         <div className="h-2 w-16 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full gradient-gold transition-all duration-500"
-            style={{ width: `${all.length ? (unlockedCount / all.length) * 100 : 0}%` }}
+            style={{ width: `${pct}%` }}
           />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto premium-scroll p-4">
+        {/* Progress hero banner */}
+        {!isLoading && unlockedCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-2xl gradient-gold p-4 text-white relative overflow-hidden shadow-glow-gold"
+          >
+            <div className="absolute inset-0 opacity-20 pattern-islamic" />
+            <div className="relative flex items-center gap-3">
+              <div className="text-4xl animate-float">🏆</div>
+              <div className="flex-1">
+                <p className="font-bengali text-sm font-bold">দারুণ অগ্রগতি!</p>
+                <p className="font-bengali text-[11px] text-white/80 mt-0.5">
+                  {unlockedCount}টি অর্জন আনলক করেছেন · আর {all.length - unlockedCount}টি বাকি
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-extrabold tabular-nums">{pct}%</p>
+                <p className="text-[9px] text-white/80">সম্পন্ন</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           {isLoading
             ? Array.from({ length: 8 }).map((_, i) => (

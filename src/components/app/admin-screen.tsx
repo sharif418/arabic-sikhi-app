@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { useNav } from "@/lib/stores/nav-store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, BookOpen, Brain, Award, Calendar, Activity, BarChart3, Library, UserCog, LineChart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, BookOpen, Brain, Award, Calendar, Activity, BarChart3, Library, UserCog, LineChart, RefreshCw, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { AdminVocabulary } from "./admin-vocabulary";
 import { AdminLessons } from "./admin-lessons";
 import { AdminUsers } from "./admin-users";
@@ -117,6 +119,9 @@ function AdminOverview() {
         )}
       </div>
 
+      {/* Weekly league reset action */}
+      <LeagueResetCard />
+
       {/* Today's activity */}
       <div className="rounded-2xl glass border border-border/50 p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -193,6 +198,66 @@ function AdminOverview() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ============ Weekly League Reset Card ============ */
+function LeagueResetCard() {
+  const queryClient = useQueryClient();
+  const [result, setResult] = useState<{ promotions: number; demotions: number } | null>(null);
+
+  const resetMutation = useMutation({
+    mutationFn: () => api.admin.leagueReset(),
+    onSuccess: (data) => {
+      setResult({ promotions: data.promotions, demotions: data.demotions });
+      toast.success(`সাপ্তাহিক রিসেট সম্পন্ন! ${data.promotions} প্রমোশন, ${data.demotions} ডিমোশন`);
+      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  return (
+    <div className="rounded-2xl gradient-aurora p-4 text-white relative overflow-hidden">
+      <div className="absolute inset-0 opacity-20 pattern-islamic" />
+      <div className="relative flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
+          <RefreshCw className={cn("h-5 w-5", resetMutation.isPending && "animate-spin")} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bengali text-sm font-bold">সাপ্তাহিক লিগ রিসেট</p>
+          <p className="font-bengali text-[11px] text-white/80 mt-0.5">
+            শীর্ষ ৩ উন্নতি, নিচের ৩ অবনমন, সাপ্তাহিক XP রিসেট
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            if (confirm("সাপ্তাহিক লিগ রিসেট করবেন? এটি সব ব্যবহারকারীর লিগ পরিবর্তন করবে।")) {
+              resetMutation.mutate();
+            }
+          }}
+          disabled={resetMutation.isPending}
+          className="bg-white text-emerald-700 font-bold rounded-xl h-9 px-3 tap-scale shrink-0"
+        >
+          {resetMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "রিসেট"}
+        </Button>
+      </div>
+      {result && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="relative mt-3 flex gap-3 pt-3 border-t border-white/20"
+        >
+          <div className="flex items-center gap-1.5 text-xs font-bold">
+            <TrendingUp className="h-3.5 w-3.5" /> {result.promotions} প্রমোশন
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-bold">
+            <TrendingDown className="h-3.5 w-3.5" /> {result.demotions} ডিমোশন
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

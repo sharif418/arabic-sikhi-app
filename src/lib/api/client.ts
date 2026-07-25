@@ -69,6 +69,7 @@ export const api = {
         progress: unknown;
         rewards: { xp: number; gems: number; stars: number };
         nextLessonId: string | null;
+        achievementsUnlocked?: Array<{ slug: string; titleBn: string; icon: string; color: string }>;
       }>("/api/lessons/complete", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -95,7 +96,7 @@ export const api = {
         count: number;
       }>(`/api/vocabulary?mode=${mode}${category ? `&category=${category}` : ""}`),
     review: (vocabularyId: string, quality: number) =>
-      request<{ updated: unknown; xpAwarded: number }>(
+      request<{ updated: unknown; xpAwarded: number; achievementsUnlocked?: Array<{ slug: string; titleBn: string; icon: string; color: string }> }>(
         "/api/vocabulary/review",
         { method: "POST", body: JSON.stringify({ vocabularyId, quality }) }
       ),
@@ -207,6 +208,17 @@ export const api = {
           completionsDelta: number;
         };
       }>(`/api/admin/analytics?days=${days}`),
+
+    leagueReset: () =>
+      request<{
+        success: boolean;
+        promotions: number;
+        demotions: number;
+        details: {
+          promotions: Array<{ userId: string; name: string; from: string; to: string }>;
+          demotions: Array<{ userId: string; name: string; from: string; to: string }>;
+        };
+      }>("/api/admin/league-reset", { method: "POST" }),
 
     // Vocabulary CRUD
     vocabulary: {

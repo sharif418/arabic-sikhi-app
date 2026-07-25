@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { checkAndUnlockAchievements } from "@/lib/achievements";
 
 const reviewSchema = z.object({
   vocabularyId: z.string(),
@@ -73,5 +74,8 @@ export const POST = apiHandler(async (req) => {
     });
   }
 
-  return ok({ updated, xpAwarded });
+  // Check achievements (vocab-learned, gems, level, etc.)
+  const achievementResult = await checkAndUnlockAchievements(session.id);
+
+  return ok({ updated, xpAwarded, achievementsUnlocked: achievementResult.unlocked });
 });
