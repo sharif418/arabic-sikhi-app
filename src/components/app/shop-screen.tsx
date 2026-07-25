@@ -13,6 +13,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { GemIcon, HeartIcon } from "@/components/icons/game-icons";
+import { ThemePreviewModal } from "./theme-preview-modal";
 
 type ShopItem = {
   id: string;
@@ -37,6 +38,7 @@ export function ShopScreen() {
   const { active: activeTheme, owned: ownedThemes, setTheme, ownTheme } = useThemeStore();
   const [category, setCategory] = useState<"powerups" | "themes">("powerups");
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [previewTheme, setPreviewTheme] = useState<ThemeId | null>(null);
 
   const buyHeartRefill = async () => {
     if (hearts >= maxHearts) {
@@ -280,9 +282,17 @@ export function ShopScreen() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06 }}
+              onClick={() => {
+                // Theme cards open the preview modal
+                if (category === "themes") {
+                  const themeId = item.id.replace("theme-", "") as ThemeId;
+                  setPreviewTheme(themeId);
+                }
+              }}
               className={cn(
                 "relative flex flex-col rounded-2xl glass border border-border/50 p-3.5 overflow-hidden",
-                item.maxedOut && "opacity-60"
+                item.maxedOut && "opacity-60",
+                category === "themes" && "cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-all tap-scale"
               )}
             >
               {item.owned && (
@@ -295,6 +305,12 @@ export function ShopScreen() {
                 <div className="absolute top-2 left-2 z-10 flex items-center gap-0.5 rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-bold text-cyan-600 dark:text-cyan-400">
                   <Snowflake className="h-2.5 w-2.5" />
                   {user?.streakFreezes}
+                </div>
+              )}
+              {/* "Tap to preview" hint for unowned themes */}
+              {category === "themes" && !item.owned && (
+                <div className="absolute top-2 left-2 z-10 rounded-full bg-primary/15 px-1.5 py-0.5 text-[8px] font-bold text-primary">
+                  👁 প্রিভিউ
                 </div>
               )}
               <div className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl mb-2", item.bg)}>
@@ -376,6 +392,9 @@ export function ShopScreen() {
           </div>
         )}
       </div>
+
+      {/* Theme preview modal */}
+      <ThemePreviewModal themeId={previewTheme} onClose={() => setPreviewTheme(null)} />
     </div>
   );
 }

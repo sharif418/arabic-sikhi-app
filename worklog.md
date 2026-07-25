@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 12 complete — Custom theme system (4 themes with CSS variable overrides), shop purchase/activation flow, settings selector, all verified**
+**Status: ✅ Phase 13 complete — Theme preview modal with live CSS preview, shop + settings integration, all verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -927,3 +927,64 @@ New "কাস্টম থিম" section in settings → Appearance:
 4. **Friends/social features** — follow other learners, see their progress
 5. **Theme preview modal** — full-screen theme preview before purchasing
 6. **Lesson content search** — search within lesson exercises (not just titles)
+
+---
+
+## Phase 13 (Cron Review Round 12) — Theme Preview Modal
+
+### QA Methodology
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 15 achievements unlocked
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Theme Preview Modal (`src/components/app/theme-preview-modal.tsx`)
+New full-screen bottom-sheet modal that lets users preview a theme before purchasing:
+- **Live preview**: applies the theme's CSS variables in real-time while the modal is open, then restores the previous theme on close
+- **Theme header**: gradient background with theme icon, Bengali + English names, "বর্তমানে সক্রিয়" badge if active
+- **Sample UI mockups** showing how the theme transforms the app:
+  - Top bar with brand logo, streak/gems/hearts stats
+  - Lesson node (circular gradient with START ribbon)
+  - Daily goal progress bar (50% filled)
+  - Primary action button ("শুরু করুন · ৫টি ধাপ")
+  - XP and gem reward indicators
+- **Purchase info card**: shows cost in gems + user's current gem balance with ✓/ insufficient indicator
+- **Smart action button** with 3 states:
+  - Active: "✓ বর্তমানে সক্রিয়" (disabled, emerald)
+  - Owned: "✓ প্রয়োগ করুন" (apply instantly)
+  - Not owned: "💎 {cost} রত্নে আনলক করুন" (purchase + apply)
+- **Footer note**: "প্রিভিউ বন্ধ করলে আগের থিমে ফিরে যাবে"
+- Spring-animated entrance (slide up + scale), backdrop blur, tap-outside-to-close
+
+#### 2. Shop Integration
+- Theme cards in the shop are now **tappable** (cursor-pointer, hover effects, tap-scale) to open the preview modal
+- **"👁 প্রিভিউ" hint badge** on unowned theme cards (top-left corner, primary color)
+- The purchase button still works directly (for users who want to buy without previewing)
+- Preview modal handles both purchase and apply flows
+
+#### 3. Settings Integration
+- The ThemeSelectorRow in settings now opens the preview modal for ALL themes (owned or not)
+- Users can preview and apply themes directly from settings without going to the shop
+- The "দোকানে আরও থিম কিনুন →" link still navigates to the shop for discovery
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Theme preview modal: live CSS application, sample UI mockups, 3 button states
+- ✅ Shop: theme cards tappable, "প্রিভিউ" hint badge on unowned themes
+- ✅ Settings: theme selector opens preview modal
+- ✅ Theme restoration: closing the modal restores the previously active theme
+
+### Architecture
+- `src/components/app/theme-preview-modal.tsx` — self-contained modal with live preview + purchase flow
+- `src/components/app/shop-screen.tsx` — theme cards now open preview on tap, "প্রিভিউ" hint badge
+- `src/components/app/settings-screen.tsx` — ThemeSelectorRow opens preview modal
+- Uses `applyThemeCss()` from theme-store for live preview + restoration
+
+### Recommended Next Focus (Phase 14)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Friends/social features** — follow other learners, see their progress
+5. **Lesson content search** — search within lesson exercises (not just titles)
+6. **Theme auto-switch** — auto-apply gold theme during Ramadan/special dates

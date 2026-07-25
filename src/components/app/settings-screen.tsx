@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useThemeStore, THEMES, type ThemeId } from "@/lib/stores/theme-store";
+import { ThemePreviewModal } from "./theme-preview-modal";
 
 export function SettingsScreen() {
   const { back } = useNav();
@@ -149,10 +150,12 @@ export function SettingsScreen() {
 function ThemeSelectorRow() {
   const { active, owned, setTheme } = useThemeStore();
   const { navigate } = useNav();
+  const [previewTheme, setPreviewTheme] = useState<ThemeId | null>(null);
 
   const themeIds: ThemeId[] = ["emerald", "gold", "rose", "midnight"];
 
   return (
+    <>
     <div className="px-3.5 py-3">
       <div className="flex items-center gap-2 mb-2">
         <Palette className="h-4 w-4 text-muted-foreground" />
@@ -167,12 +170,8 @@ function ThemeSelectorRow() {
             <button
               key={id}
               onClick={() => {
-                if (isOwned) {
-                  setTheme(id);
-                  toast.success(`${theme.icon} ${theme.nameBn} থিম প্রয়োগ হয়েছে!`);
-                } else {
-                  navigate({ name: "shop" });
-                }
+                // Open the preview modal for all themes (owned or not)
+                setPreviewTheme(id);
               }}
               className={cn(
                 "relative flex flex-col items-center gap-1 rounded-xl border-2 p-2 transition-all tap-scale",
@@ -210,6 +209,8 @@ function ThemeSelectorRow() {
         </button>
       )}
     </div>
+    <ThemePreviewModal themeId={previewTheme} onClose={() => setPreviewTheme(null)} />
+    </>
   );
 }
 
