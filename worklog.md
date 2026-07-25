@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 2 complete — bug fixes, new features (Shop + Lesson Intro), full gamification loop verified end-to-end**
+**Status: ✅ Phase 3 complete — Admin CRUD dashboard (vocabulary, lessons, users management), 8 new API endpoints, browser-verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -147,3 +147,81 @@ Generate premium visual assets (logo, app icon, lesson scene illustrations) to e
 4. Weekly league promotion/demotion cron logic
 5. PWA service worker for true offline-first
 6. Streak freeze consumption logic (currently purchase-only, no auto-consume on missed day)
+
+---
+
+## Phase 3 (Cron Review Round 2) — Admin CRUD Dashboard
+
+### QA Methodology
+- Logged in as admin (admin@arabicsikhi.com) via agent-browser
+- VLM-analyzed the existing admin dashboard (read-only analytics)
+- Identified that the admin panel was functionally incomplete — missing content management, user management, and CRUD operations
+
+### New Features Added
+
+#### 1. Admin Dashboard Redesign (4 tabs)
+Redesigned `src/components/app/admin-screen.tsx` with a tabbed interface:
+- **ওভারভিউ (Overview)** — KPI cards, today's activity, league distribution, course overview (retained from before)
+- **শব্দভান্ডার (Vocabulary)** — Full CRUD for vocabulary words
+- **লেসন (Lessons)** — Full CRUD for lessons, grouped by unit
+- **ব্যবহারকারী (Users)** — User management with role/league editing
+
+Premium emerald gradient header with Islamic pattern, animated tab transitions, "AD" admin badge.
+
+#### 2. Vocabulary CRUD (`src/components/app/admin-vocabulary.tsx`)
+- **List**: Paginated, searchable (Arabic/Bengali/English), filterable by category chips
+- **Create/Edit**: Full form dialog with Arabic (RTL), transliteration, Bengala, English, part-of-speech, category, difficulty (1-5 star selector), example sentences
+- **Delete**: With confirmation
+- Each word card shows: Arabic letter avatar, Arabic word, transliteration, Bengali/English meanings, category/POS badges, difficulty
+
+#### 3. Lessons CRUD (`src/components/app/admin-lessons.tsx`)
+- **List**: Grouped by unit with expandable accordions, course filter chips
+- **Create/Edit**: Form dialog with unit selector, Bengali/English titles, description, lesson type (standard/boss/review/treasure with icons), icon, XP reward, gem reward
+- **Delete**: With confirmation
+- Each lesson row shows: icon, title, order number, type badge (if non-standard), XP/gem rewards, exercise count
+
+#### 4. User Management (`src/components/app/admin-users.tsx`)
+- **List**: Paginated, searchable (name/email), filterable by role (all/user/admin)
+- **Edit**: Full dialog with role toggle (user/admin), league selector (6 leagues with colors), gems/XP editors, progress reset checkbox
+- **Delete**: With confirmation + last-admin safeguard
+- Each user card shows: avatar (gold for admins), name, email, role badge, 4-stat grid (level/XP/streak/lessons completed)
+
+### API Routes Added (8 new endpoints)
+- `GET/POST /api/admin/vocabulary` — list + create
+- `GET/PUT/DELETE /api/admin/vocabulary/[id]` — read + update + delete
+- `GET/POST /api/admin/lessons` — list + create
+- `GET/PUT/DELETE /api/admin/lessons/[id]` — read + update + delete
+- `GET /api/admin/users` — list with search/filter
+- `PUT/DELETE /api/admin/users/[id]` — update + delete (with last-admin safeguard)
+
+All routes guarded by `requireAdmin()` helper (`src/lib/api/admin-guard.ts`) — returns 403 for non-admins.
+
+### Security
+- All admin routes check `session.role === "admin"` via the `requireAdmin()` guard
+- Last-admin safeguard: prevents demoting or deleting the last admin account
+- Input validation via Zod schemas on all POST/PUT routes
+- Cascade deletes handled by Prisma schema (deleting a lesson removes its UserProgress, etc.)
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Admin dashboard renders with 4 tabs, animated transitions
+- ✅ Vocabulary CRUD: created "الْحَمْدُ" (praise) → `POST /api/admin/vocabulary 201` → appears in list with success toast
+- ✅ Vocabulary: search + category filters work
+- ✅ Lessons tab: course filters + expandable unit accordions show lessons with XP/gem/exercise counts
+- ✅ Users tab: paginated list with role filters, edit/delete buttons (VLM-verified)
+- ✅ All API routes return correct status codes (200/201/403)
+- ✅ No runtime errors in dev log
+
+### Architecture
+- Senior-grade separation: `admin-screen.tsx` (shell + tabs) imports `admin-vocabulary.tsx`, `admin-lessons.tsx`, `admin-users.tsx` (each self-contained with its own queries/mutations/dialogs)
+- Shared `requireAdmin()` guard eliminates auth boilerplate
+- Typed API client extended with full `api.admin.{vocabulary,lessons,users}.{list,create,update,delete}` methods
+- Reusable Dialog/Form patterns across all 3 CRUD modules
+
+### Recommended Next Focus (Phase 4)
+1. **Streak freeze auto-consume logic** — when a user misses a day, auto-consume a purchased streak freeze
+2. **Weekly league promotion/demotion cron** — promote top 3, demote bottom 3 each week
+3. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+4. **PWA service worker** — true offline-first with cached lessons
+5. **Admin: exercise editor** — currently lessons show exercise count but exercises can't be visually edited (only via raw JSON); add a visual exercise builder
+6. **Admin: analytics charts** — add Recharts-based trend graphs (XP over time, daily active users)

@@ -184,5 +184,138 @@ export const api = {
         }>;
         courseProgress: Array<{ id: string; title: string; titleBn: string; slug: string; _count: { units: number } }>;
       }>("/api/admin/stats"),
+
+    analytics: (days = 14) =>
+      request<{
+        xpTrend: Array<{
+          date: string; day: string; label: string;
+          completions: number; avgScore: number; avgStars: number; index: number;
+        }>;
+        dauTrend: Array<{ date: string; activeUsers: number }>;
+        leagueDistribution: Array<{ league: string; _count: number }>;
+        courseCompletion: Array<{
+          id: string; titleBn: string; icon: string; color: string;
+          totalLessons: number; completions: number;
+        }>;
+        summary: {
+          totalUsers: number;
+          totalCompletions: number;
+          avgScore: number;
+          perfectLessons: number;
+          currCompletions: number;
+          prevCompletions: number;
+          completionsDelta: number;
+        };
+      }>(`/api/admin/analytics?days=${days}`),
+
+    // Vocabulary CRUD
+    vocabulary: {
+      list: (params?: { q?: string; category?: string; page?: number; limit?: number }) => {
+        const sp = new URLSearchParams();
+        if (params?.q) sp.set("q", params.q);
+        if (params?.category) sp.set("category", params.category);
+        if (params?.page) sp.set("page", String(params.page));
+        if (params?.limit) sp.set("limit", String(params.limit));
+        const qs = sp.toString();
+        return request<{
+          words: Array<{
+            id: string;
+            arabic: string;
+            transliteration: string;
+            bangla: string;
+            english: string;
+            partOfSpeech: string | null;
+            category: string | null;
+            exampleArabic: string | null;
+            exampleBangla: string | null;
+            difficulty: number;
+            createdAt: string;
+          }>;
+          total: number;
+          page: number;
+          totalPages: number;
+          categories: string[];
+        }>(`/api/admin/vocabulary${qs ? `?${qs}` : ""}`);
+      },
+      create: (data: {
+        arabic: string; transliteration: string; bangla: string; english: string;
+        partOfSpeech?: string | null; category?: string | null;
+        exampleArabic?: string | null; exampleBangla?: string | null;
+        difficulty?: number;
+      }) => request<{ word: unknown }>("/api/admin/vocabulary", {
+        method: "POST", body: JSON.stringify(data),
+      }),
+      update: (id: string, data: Record<string, unknown>) =>
+        request<{ word: unknown }>(`/api/admin/vocabulary/${id}`, {
+          method: "PUT", body: JSON.stringify(data),
+        }),
+      delete: (id: string) =>
+        request<{ success: boolean }>(`/api/admin/vocabulary/${id}`, { method: "DELETE" }),
+    },
+
+    // Lessons CRUD
+    lessons: {
+      list: (params?: { unitId?: string; courseId?: string; page?: number; limit?: number }) => {
+        const sp = new URLSearchParams();
+        if (params?.unitId) sp.set("unitId", params.unitId);
+        if (params?.courseId) sp.set("courseId", params.courseId);
+        if (params?.page) sp.set("page", String(params.page));
+        if (params?.limit) sp.set("limit", String(params.limit));
+        const qs = sp.toString();
+        return request<{
+          lessons: Array<{
+            id: string; unitId: string; title: string; titleBn: string; description: string;
+            type: string; xpReward: number; gemReward: number; icon: string; order: number;
+            exercises: unknown[];
+            unit: { id: string; titleBn: string; courseId: string; course: { titleBn: string } };
+          }>;
+          total: number;
+          page: number;
+          totalPages: number;
+          units: Array<{ id: string; titleBn: string; course: { id: string; titleBn: string; slug: string; icon: string } }>;
+        }>(`/api/admin/lessons${qs ? `?${qs}` : ""}`);
+      },
+      create: (data: {
+        unitId: string; title: string; titleBn: string; description?: string;
+        type?: string; xpReward?: number; gemReward?: number; icon?: string;
+        exercises?: unknown[];
+      }) => request<{ lesson: unknown }>("/api/admin/lessons", {
+        method: "POST", body: JSON.stringify(data),
+      }),
+      update: (id: string, data: Record<string, unknown>) =>
+        request<{ lesson: unknown }>(`/api/admin/lessons/${id}`, {
+          method: "PUT", body: JSON.stringify(data),
+        }),
+      delete: (id: string) =>
+        request<{ success: boolean }>(`/api/admin/lessons/${id}`, { method: "DELETE" }),
+    },
+
+    // Users management
+    users: {
+      list: (params?: { q?: string; role?: string; page?: number; limit?: number }) => {
+        const sp = new URLSearchParams();
+        if (params?.q) sp.set("q", params.q);
+        if (params?.role) sp.set("role", params.role);
+        if (params?.page) sp.set("page", String(params.page));
+        if (params?.limit) sp.set("limit", String(params.limit));
+        const qs = sp.toString();
+        return request<{
+          users: Array<{
+            id: string; name: string; email: string; role: string; createdAt: string;
+            league: string; totalXp: number; level: number; streak: number; gems: number;
+            lessonsCompleted: number;
+          }>;
+          total: number;
+          page: number;
+          totalPages: number;
+        }>(`/api/admin/users${qs ? `?${qs}` : ""}`);
+      },
+      update: (id: string, data: { role?: string; league?: string; gems?: number; xp?: number; resetProgress?: boolean }) =>
+        request<{ user: { id: string; name: string; role: string } }>(`/api/admin/users/${id}`, {
+          method: "PUT", body: JSON.stringify(data),
+        }),
+      delete: (id: string) =>
+        request<{ success: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" }),
+    },
   },
 };
