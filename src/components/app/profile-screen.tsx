@@ -15,6 +15,7 @@ import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { StarIcon } from "@/components/icons/game-icons";
 import { LEAGUES } from "@/lib/stores/game-store";
+import { StreakHeatmap } from "./streak-heatmap";
 
 export function ProfileScreen() {
   const { user, logout } = useAuth();

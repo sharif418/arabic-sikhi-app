@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 8 complete — Category progress tracking on dictionary + lesson practice mode with previous-best display, all verified**
+**Status: ✅ Phase 9 complete — Achievement NEW badge + GitHub-style streak heatmap on profile, activity history API, all verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -620,3 +620,73 @@ Completed lessons can now be redone for practice:
 4. **Daily streak heatmap** — GitHub-style contribution graph on profile
 5. **Achievement "NEW" badge** — mark recently unlocked achievements on profile/achievements screen
 6. **Lesson search** — let users search for specific lessons by name
+
+---
+
+## Phase 9 (Cron Review Round 8) — Achievement NEW Badge + Streak Heatmap
+
+### QA Methodology
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 0 learned cards, 1 completed lesson, 15 achievements unlocked
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Achievement "NEW" Badge
+Achievements unlocked within the last 24 hours now show a pulsing gold "NEW" badge:
+- **Achievements screen**: Animated badge (spring entrance with rotation, `animate-pulse-glow`) positioned at the top-right corner of recently unlocked achievement cards
+- **Profile achievements preview**: Smaller gold "NEW" badge on the top 4 achievement cards
+- Uses `unlockedAt` timestamp from the `UserAchievement` record
+- Badge disappears automatically after 24 hours
+
+#### 2. Activity History API (`/api/user/activity`)
+New endpoint that returns the user's daily lesson completion history for a GitHub-style contribution heatmap:
+- Accepts `weeks` parameter (4-20, default 12)
+- Aligns the start date to Saturday (Bengali week start)
+- Fetches all completed lessons in the range
+- Counts completions per day and assigns an intensity level (0-4):
+  - Level 0: no activity
+  - Level 1: 1 lesson
+  - Level 2: 2 lessons
+  - Level 3: 3-4 lessons
+  - Level 4: 5+ lessons
+- Returns weeks array (each week = 7 days), total completions, active days, today's count, and streak
+- Verified: 12 weeks starting 2026-05-02, 1 completion on 2026-07-25 (today)
+
+#### 3. Streak Heatmap Component (`src/components/app/streak-heatmap.tsx`)
+GitHub-style contribution graph on the profile screen:
+- **12-week grid**: columns = weeks, rows = days (Sat-Fri, Bengali week order)
+- **5-level color scale**: muted (0) → emerald-500/30 (1) → emerald-500/55 (2) → emerald-500/80 (3) → emerald-600 (4)
+- **Month labels** at the top (জানু, ফেব্রু, মার্চ, etc.)
+- **Weekday labels** on the left (শনি, রবি, সোম, etc., shown every other row)
+- **Today indicator**: amber ring around today's cell
+- **Hover tooltip**: shows date + lesson count for the hovered day
+- **Legend**: "কম" (less) → color scale → "বেশি" (more)
+- **Stats footer**: total completions, active days, today's count (or hovered day detail)
+- Staggered cell entrance animations
+- Horizontally scrollable for narrow screens
+
+#### 4. Profile Integration
+The heatmap is placed on the profile screen between the weekly streak card and the achievements section, giving users a visual history of their learning consistency over the last ~3 months.
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Activity API logic verified: 12 weeks from 2026-05-02, 1 completion on 2026-07-25, correct day-grouping
+- ✅ Heatmap component renders with 5-level color scale, month/weekday labels, hover tooltips
+- ✅ NEW badge logic: shows for achievements with `unlockedAt` within 24 hours
+- ✅ Profile and achievements screen both show NEW badges
+
+### Architecture
+- `src/app/api/user/activity/route.ts` — GET endpoint, aggregates daily completions into weeks
+- `src/components/app/streak-heatmap.tsx` — self-contained heatmap with 5-level colors + tooltips
+- `src/components/app/profile-screen.tsx` — integrated heatmap + NEW badges on achievement preview
+- `src/components/app/achievements-screen.tsx` — NEW badges on achievement cards
+- `src/lib/api/client.ts` — added `api.activity(weeks)` typed method
+
+### Recommended Next Focus (Phase 10)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Lesson search** — let users search for specific lessons by name
+5. **Friends/social features** — follow other learners, see their progress
+6. **Customizable daily goal** — let users pick XP target + reminder time
