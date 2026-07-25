@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { useNav } from "@/lib/stores/nav-store";
 import { useSpeech } from "@/hooks/use-speech";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Volume2, BookOpen, ChevronLeft, ChevronRight, Check, Star } from "lucide-react";
-import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Search, Volume2, BookOpen, ChevronLeft, ChevronRight, Check, Star, Plus, X, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const CATEGORY_LABELS: Record<string, string> = {
   greeting: "শুভেচ্ছা",
@@ -29,17 +31,35 @@ const CATEGORY_LABELS: Record<string, string> = {
   phrases: "বাক্য",
 };
 
+type WordCard = {
+  id: string;
+  arabic: string;
+  transliteration: string;
+  bangla: string;
+  english: string;
+  partOfSpeech: string | null;
+  category: string | null;
+  exampleArabic: string | null;
+  exampleBangla: string | null;
+  difficulty: number;
+  learned: boolean;
+  box: number;
+};
+
 export function DictionaryScreen() {
   const { back } = useNav();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [selectedWord, setSelectedWord] = useState<WordCard | null>(null);
   const { speak } = useSpeech();
 
   const { data, isLoading } = useQuery({
     queryKey: ["vocab-browse", search, category, page],
     queryFn: () => api.vocabulary.browse({ q: search || undefined, category: category || undefined, page, limit: 20 }),
   });
+
+  const wordCards = data?.cards ?? [];
 
   return (
     <div className="flex h-full flex-col">
@@ -115,7 +135,8 @@ export function DictionaryScreen() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
-              className="rounded-2xl glass border border-border/50 p-3 flex items-center gap-3"
+              onClick={() => setSelectedWord(word)}
+              className="rounded-2xl glass border border-border/50 p-3 flex items-center gap-3 cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-all tap-scale"
             >
               {/* Difficulty stars */}
               <div className="flex flex-col items-center gap-0.5 shrink-0 w-8">
@@ -194,6 +215,160 @@ export function DictionaryScreen() {
           </button>
         </div>
       )}
+
+      {/* Word detail modal */}
+      <AnimatePresence>
+        {selectedWord && (
+          <WordDetailModal
+            word={selectedWord}
+            onClose={() => setSelectedWord(null)}
+            onAdded={() => {
+              setSelectedWord(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/* ---------- Word Detail Modal ---------- */
+function WordDetailModal({
+  word,
+  onClose,
+  onAdded,
+}: {
+  word: WordCard;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const { speak } = useSpeech();
+  const queryClient = useQueryClient();
+  const [adding, setAdding] = useState(false);
+
+  const addMutation = useMutation({
+    mutationFn: () => api.vocabulary.add(word.id),
+    onSuccess: (data) => {
+      if (data.alreadyAdded) {
+        toast.info("এই শব্দটি ইতিমধ্যে আপনার তালিকায় আছে");
+      } else {
+        toast.success("📚 শব্দটি আপনার পর্যালোচনা তালিকায় যোগ হয়েছে!");
+      }
+      queryClient.invalidateQueries({ queryKey: ["vocab-browse"] });
+      queryClient.invalidateQueries({ queryKey: ["vocab"] });
+      onAdded();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const handleAdd = () => {
+    setAdding(true);
+    addMutation.mutate();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 40, opacity: 0, scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 300, damping: 28 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-background border border-border/50 shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto premium-scroll"
+      >
+        {/* Header with gradient */}
+        <div className="relative gradient-emerald p-6 text-white text-center overflow-hidden">
+          <div className="absolute inset-0 opacity-20 pattern-islamic" />
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur tap-scale"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="relative">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-2">
+              {word.category ? CATEGORY_LABELS[word.category] ?? word.category : "শব্দ"}
+            </p>
+            <button
+              onClick={() => speak(word.arabic)}
+              className="font-arabic text-5xl font-bold leading-tight tap-scale inline-flex items-center gap-2"
+            >
+              {word.arabic}
+            </button>
+            <p className="mt-2 text-sm italic text-white/80">{word.transliteration}</p>
+            <button
+              onClick={() => speak(word.arabic)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-3 py-1.5 text-xs font-bold tap-scale"
+            >
+              <Volume2 className="h-3.5 w-3.5" /> উচ্চারণ শুনুন
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {/* Meanings */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">বাংলা</p>
+              <p className="font-bengali text-lg font-bold">{word.bangla}</p>
+            </div>
+            <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">English</p>
+              <p className="text-lg font-bold">{word.english}</p>
+            </div>
+          </div>
+
+          {/* Metadata */}
+          <div className="flex flex-wrap gap-2">
+            {word.partOfSpeech && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+                {word.partOfSpeech}
+              </span>
+            )}
+            <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+              <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> কঠিনতা {word.difficulty}/5
+            </span>
+            {word.learned && (
+              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Check className="h-3 w-3" /> শিখেছেন
+              </span>
+            )}
+          </div>
+
+          {/* Examples */}
+          {word.exampleArabic && (
+            <div className="rounded-2xl glass border border-border/50 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">উদাহরণ</p>
+              <p className="font-arabic text-xl text-right mb-1">{word.exampleArabic}</p>
+              {word.exampleBangla && (
+                <p className="font-bengali text-xs text-muted-foreground">{word.exampleBangla}</p>
+              )}
+            </div>
+          )}
+
+          {/* Add to SRS button */}
+          <Button
+            onClick={handleAdd}
+            disabled={adding || word.learned}
+            className="w-full h-12 gradient-emerald text-primary-foreground font-bold rounded-2xl tap-scale"
+          >
+            {adding ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : word.learned ? (
+              <><Check className="h-4 w-4 mr-1" /> ইতিমধ্যে তালিকায় আছে</>
+            ) : (
+              <><Plus className="h-4 w-4 mr-1" /> পর্যালোচনা তালিকায় যোগ করুন</>
+            )}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

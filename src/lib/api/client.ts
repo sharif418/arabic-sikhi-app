@@ -129,6 +129,22 @@ export const api = {
         "/api/vocabulary/review",
         { method: "POST", body: JSON.stringify({ vocabularyId, quality }) }
       ),
+    add: (vocabularyId: string) =>
+      request<{ alreadyAdded: boolean; userVocab: unknown }>("/api/vocabulary/add", {
+        method: "POST",
+        body: JSON.stringify({ vocabularyId }),
+      }),
+    wordOfDay: () =>
+      request<{
+        word: {
+          id: string; arabic: string; transliteration: string; bangla: string;
+          english: string; partOfSpeech: string | null; category: string | null;
+          exampleArabic: string | null; exampleBangla: string | null; difficulty: number;
+        };
+        learned: boolean;
+        box: number;
+        dayOfYear: number;
+      }>("/api/vocabulary/word-of-day"),
   },
   leaderboard: (league?: string) =>
     request<{

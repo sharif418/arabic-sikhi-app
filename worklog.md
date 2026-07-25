@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 6 complete — Vocabulary expanded 31→216 words across 16 categories, dictionary browser screen with search/filter/TTS, all verified**
+**Status: ✅ Phase 7 complete — Word detail modal + add-to-SRS API + daily word on home screen, all verified via scripts**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -477,3 +477,80 @@ The vocabulary is authentic Quranic/Modern Standard Arabic, carefully curated fo
 4. **Category progress tracking** — show per-category learned/total on dictionary screen
 5. **Word detail modal** — tap a dictionary word to see full details + examples + add to SRS
 6. **Daily word notification** — push a new word each day to learn
+
+---
+
+## Phase 7 (Cron Review Round 6) — Word Detail Modal + Daily Word
+
+### QA Methodology
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 15 achievements unlocked
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Add-to-SRS API (`/api/vocabulary/add`)
+New endpoint that lets users manually add a dictionary word to their spaced-repetition review deck:
+- Accepts `vocabularyId` in the body
+- Verifies the word exists
+- Checks if already in the user's deck (idempotent — returns `alreadyAdded: true`)
+- Creates a `UserVocabulary` record at box 1, ease factor 2.5, interval 1, due now
+- Returns `{ alreadyAdded, userVocab }`
+
+Verified via direct script: successfully added "مَتَى؟" to the demo user's deck at box 1, then cleaned up.
+
+#### 2. Word of the Day API (`/api/vocabulary/word-of-day`)
+New endpoint that returns a deterministic daily word:
+- Uses day-of-year to pick a word from the easy pool (difficulty ≤ 3)
+- Rotates daily (212 easy words → cycles through them over the year)
+- Returns the word + whether the user has already learned it + box level
+- 1-hour stale time on the client to avoid redundant calls
+
+Verified: day 206 → "مَتَى؟" (কখন? / when?), difficulty 2, not yet learned by demo user.
+
+#### 3. Word Detail Modal (Dictionary Screen)
+Tapping any word in the dictionary now opens a rich bottom-sheet modal:
+- **Emerald gradient header** with Islamic pattern, category label, large Arabic text (tappable for TTS), transliteration, and a "উচ্চারণ শুনুন" (listen) button
+- **Meanings grid**: Bengala (emerald card) + English (amber card) side by side
+- **Metadata badges**: part of speech, difficulty (⭐ N/5), learned status
+- **Example sentence** section (RTL Arabic + Bengali translation) when available
+- **"পর্যালোচনা তালিকায় যোগ করুন"** (Add to review list) button — calls the add-to-SRS API, shows loading spinner, then success toast; disabled if already learned
+- Spring-animated entrance (slide up + scale), backdrop blur, tap-outside-to-close
+- Toast notifications: "📚 শব্দটি আপনার পর্যালোচনা তালিকায় যোগ হয়েছে!" or "এই শব্দটি ইতিমধ্যে আপনার তালিকায় আছে"
+- Invalidates browse + vocab queries on success so the learned badge updates
+
+#### 4. Daily Word Card (Home Screen)
+New "আজকের শব্দ" (Word of the Day) card on the home screen, placed above the daily goal banner:
+- **Glass card** with a subtle gold glow blur in the corner
+- **Gold gradient calendar badge** with "আজ" (today) label
+- **Arabic word** (large, font-arabic) with a TTS audio button
+- **Bengali meaning + transliteration** below
+- **Smart CTA**: 
+  - If not learned → "শিখুন" (Learn) button that navigates to the dictionary
+  - If learned → green sparkles badge with "শিখেছেন" (Learned)
+- Skeleton loading state, 1-hour stale time
+
+#### 5. Dictionary Cards Now Tappable
+Word cards in the dictionary now have `cursor-pointer`, hover effects (border-primary + bg-accent), and tap-scale feedback. Clicking opens the new word detail modal.
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Word-of-day logic verified: day 206 → "مَتَى؟" from 212-word easy pool
+- ✅ Add-to-SRS logic verified: creates UserVocabulary at box 1, detects already-added (idempotent)
+- ✅ Word detail modal integrated with TTS, examples, add-to-SRS, and toast notifications
+- ✅ Daily word card renders on home with calendar badge + smart CTA
+
+### Architecture
+- `src/app/api/vocabulary/add/route.ts` — POST endpoint, Zod-validated, idempotent
+- `src/app/api/vocabulary/word-of-day/route.ts` — GET endpoint, deterministic day-based selection
+- `src/components/app/dictionary-screen.tsx` — added `WordDetailModal` component with spring animations
+- `src/components/app/home-screen.tsx` — added `DailyWord` component
+- `src/lib/api/client.ts` — added `api.vocabulary.add()` and `api.vocabulary.wordOfDay()` typed methods
+
+### Recommended Next Focus (Phase 8)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Category progress tracking** — show per-category learned/total on dictionary screen
+5. **Streak freeze shop integration** — show owned freezes count in shop card (partially done)
+6. **Lesson review mode** — let users redo completed lessons for practice

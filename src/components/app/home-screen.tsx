@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CourseSummary, CourseLesson } from "@/lib/types";
 import { useState } from "react";
-import { Sparkles, Bot, ChevronRight } from "lucide-react";
+import { Sparkles, Bot, ChevronRight, Volume2, Calendar } from "lucide-react";
+import { useSpeech } from "@/hooks/use-speech";
 
 export function HomeScreen() {
   const { data, isLoading } = useQuery({ queryKey: ["courses"], queryFn: api.courses.list });
@@ -43,6 +44,9 @@ export function HomeScreen() {
               ))}
         </div>
       </div>
+
+      {/* Word of the Day */}
+      <DailyWord />
 
       {/* Daily goal banner */}
       <DailyGoalBanner />
@@ -96,6 +100,82 @@ function CourseChip({
         </span>
       </div>
     </button>
+  );
+}
+
+/* ---------- Word of the Day ---------- */
+function DailyWord() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["word-of-day"],
+    queryFn: api.vocabulary.wordOfDay,
+    staleTime: 60 * 60 * 1000, // 1 hour — word changes daily
+  });
+  const { speak } = useSpeech();
+  const { navigate } = useNav();
+
+  if (isLoading) {
+    return (
+      <div className="px-4 pb-3">
+        <Skeleton className="h-20 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+  const { word, learned } = data;
+
+  return (
+    <div className="px-4 pb-3">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative rounded-2xl glass border border-border/50 p-3.5 overflow-hidden"
+      >
+        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full gradient-gold opacity-10 blur-2xl" />
+        <div className="relative flex items-center gap-3">
+          {/* Calendar badge */}
+          <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl gradient-gold text-white shadow-soft">
+            <Calendar className="h-3 w-3" />
+            <span className="text-[8px] font-bold leading-none mt-0.5">আজ</span>
+          </div>
+
+          {/* Word content */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">আজকের শব্দ</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="font-arabic text-2xl font-bold leading-tight">{word.arabic}</span>
+              <button
+                onClick={() => speak(word.arabic)}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary tap-scale"
+              >
+                <Volume2 className="h-3 w-3" />
+              </button>
+            </div>
+            <p className="font-bengali text-xs text-muted-foreground mt-0.5 truncate">
+              {word.bangla} · <span className="italic">{word.transliteration}</span>
+            </p>
+          </div>
+
+          {/* Status / action */}
+          {learned ? (
+            <div className="shrink-0 flex flex-col items-center gap-0.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400">শিখেছেন</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate({ name: "dictionary" })}
+              className="shrink-0 flex h-8 items-center gap-1 rounded-full gradient-emerald text-primary-foreground px-2.5 text-[10px] font-bold tap-scale"
+            >
+              শিখুন
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
