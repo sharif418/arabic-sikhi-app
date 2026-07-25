@@ -1,0 +1,191 @@
+// Arabic Sikhi — Premium Quranic Arabic Learning App
+// Prisma schema (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ USERS & GAMIFICATION ============
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  avatar        String?
+  passwordHash  String
+  role          String   @default("user") // user | admin
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Gamification (mirrored for leaderboard / cross-device)
+  hearts        Int      @default(5)
+  gems          Int      @default(20)
+  xp            Int      @default(0)
+  totalXp       Int      @default(0)
+  level         Int      @default(1)
+  streak        Int      @default(0)
+  lastActiveDate String? // YYYY-MM-DD
+  league        String   @default("Bronze")
+
+  // Relations
+  progress      UserProgress[]
+  vocabReviews  UserVocabulary[]
+  achievements  UserAchievement[]
+  leaderboard   LeaderboardEntry?
+}
+
+// ============ COURSE STRUCTURE ============
+
+model Course {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  titleBn     String
+  subtitle    String
+  description String
+  color       String   // gradient identifier
+  icon        String   // emoji or asset key
+  order       Int      @default(0)
+  units       Unit[]
+  createdAt   DateTime @default(now())
+}
+
+model Unit {
+  id          String   @id @default(cuid())
+  courseId     String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  titleBn     String
+  description String
+  order       Int      @default(0)
+  icon        String   @default("📘")
+  lessons     Lesson[]
+  createdAt   DateTime @default(now())
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id            String   @id @default(cuid())
+  unitId        String
+  unit          Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  title         String
+  titleBn       String
+  description   String
+  order         Int      @default(0)
+  type          String   @default("standard") // standard | boss | review | treasure
+  xpReward      Int      @default(10)
+  gemReward     Int      @default(2)
+  icon          String   @default("⭐")
+  exercisesJson String  // JSON: array of exercises
+  createdAt     DateTime @default(now())
+
+  progress      UserProgress[]
+
+  @@index([unitId])
+}
+
+// ============ VOCABULARY (Spaced Repetition) ============
+
+model Vocabulary {
+  id            String   @id @default(cuid())
+  arabic        String
+  transliteration String
+  bangla        String
+  english       String
+  partOfSpeech  String?  // noun | verb | adjective | phrase
+  category      String?  // greeting | family | food | prayer...
+  audioUrl      String?
+  exampleArabic String?
+  exampleBangla String?
+  difficulty    Int      @default(1) // 1-5
+  createdAt     DateTime @default(now())
+
+  reviews       UserVocabulary[]
+}
+
+model UserVocabulary {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocabularyId  String
+  vocabulary    Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  // SRS (Leitner-style) fields
+  box           Int      @default(1) // 1..5
+  easeFactor    Float    @default(2.5)
+  interval      Int      @default(1) // days
+  dueDate       DateTime @default(now())
+  reviewCount   Int      @default(0)
+  lastReviewed  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, vocabularyId])
+  @@index([userId, dueDate])
+}
+
+// ============ PROGRESS ============
+
+model UserProgress {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId      String
+  lesson        Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  status        String   @default("locked") // locked | available | completed
+  score         Int      @default(0) // 0-100
+  stars         Int      @default(0) // 0-3
+  attempts      Int      @default(0)
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+// ============ ACHIEVEMENTS ============
+
+model Achievement {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  titleBn     String
+  description String
+  descriptionBn String
+  icon        String
+  color       String
+  requirement String   // JSON describing unlock condition
+  createdAt   DateTime @default(now())
+
+  unlocks     UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+// ============ LEADERBOARD ============
+
+model LeaderboardEntry {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league    String   @default("Bronze")
+  weeklyXp  Int      @default(0)
+  totalXp   Int      @default(0)
+  rank      Int      @default(0)
+  updatedAt DateTime @updatedAt
+}

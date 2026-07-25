@@ -1,0 +1,18 @@
+{
+  "name": "আরবি শিখি — Arabic Sikhi",
+  "short_name": "আরবি শিখি",
+  "description": "Premium Quranic Arabic Learning App by As-Sunnah Foundation",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f3ea",
+  "theme_color": "#1a2520",
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
