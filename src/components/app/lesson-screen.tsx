@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { Exercise } from "@/lib/types";
 import { toast } from "sonner";
 
-type Phase = "playing" | "correct" | "wrong" | "complete";
+type Phase = "intro" | "playing" | "correct" | "wrong" | "complete";
 
 export function LessonScreen({ lessonId }: { lessonId: string }) {
   const { data, isLoading } = useQuery({
@@ -24,7 +24,7 @@ export function LessonScreen({ lessonId }: { lessonId: string }) {
     queryFn: () => api.lessons.get(lessonId),
   });
   const [index, setIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>("playing");
+  const [phase, setPhase] = useState<Phase>("intro");
   const [correctCount, setCorrectCount] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [selected, setSelected] = useState<boolean | null>(null);
@@ -71,6 +71,24 @@ export function LessonScreen({ lessonId }: { lessonId: string }) {
 
   if (!data) {
     return <div className="p-6 text-center text-muted-foreground">Lesson not found.</div>;
+  }
+
+  if (phase === "intro") {
+    return (
+      <LessonIntro
+        titleBn={data.lesson.titleBn}
+        description={data.lesson.description}
+        icon={data.lesson.icon}
+        type={data.lesson.type}
+        xpReward={data.lesson.xpReward}
+        gemReward={data.lesson.gemReward}
+        exerciseCount={data.lesson.exercises.length}
+        courseTitleBn={data.lesson.unit.course.titleBn}
+        courseColor={data.lesson.unit.course.color}
+        onStart={() => setPhase("playing")}
+        onExit={back}
+      />
+    );
   }
 
   if (phase === "complete") {
@@ -636,6 +654,135 @@ function FeedbackFooter({
           )}
         >
           চালিয়ে যান
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Lesson Intro ---------- */
+function LessonIntro({
+  titleBn,
+  description,
+  icon,
+  type,
+  xpReward,
+  gemReward,
+  exerciseCount,
+  courseTitleBn,
+  courseColor,
+  onStart,
+  onExit,
+}: {
+  titleBn: string;
+  description: string;
+  icon: string;
+  type: string;
+  xpReward: number;
+  gemReward: number;
+  exerciseCount: number;
+  courseTitleBn: string;
+  courseColor: string;
+  onStart: () => void;
+  onExit: () => void;
+}) {
+  const isBoss = type === "boss";
+  const headerGradient =
+    courseColor === "emerald" ? "gradient-emerald" :
+    courseColor === "gold" ? "gradient-gold" :
+    courseColor === "teal" ? "gradient-aurora" :
+    courseColor === "sunset" ? "gradient-sunset" : "gradient-emerald";
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header with course branding */}
+      <div className={cn("relative px-5 pt-5 pb-6 text-white safe-top overflow-hidden", headerGradient)}>
+        <div className="absolute inset-0 opacity-20 pattern-islamic" />
+        <div className="relative flex items-center justify-between mb-4">
+          <button onClick={onExit} className="tap-scale text-white/80 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 bg-white/15 px-2 py-0.5 rounded-full">
+            {courseTitleBn}
+          </span>
+        </div>
+        <div className="relative flex flex-col items-center text-center">
+          <motion.div
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 14 }}
+            className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white/20 backdrop-blur text-5xl mb-3 border-2 border-white/30 shadow-soft"
+          >
+            {isBoss ? "👑" : icon}
+          </motion.div>
+          <h1 className="font-bengali text-xl font-extrabold">{titleBn}</h1>
+          <p className="font-bengali text-xs text-white/80 mt-1 max-w-[260px]">{description}</p>
+          {isBoss && (
+            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold">
+              👑 বস লেসন — সব শেখা যাচাই করুন
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Body: what you'll do + rewards */}
+      <div className="flex-1 overflow-y-auto premium-scroll px-5 py-5 space-y-4">
+        <div>
+          <h2 className="font-bengali text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+            যা শিখবেন
+          </h2>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { icon: "📚", label: `${exerciseCount}টি অনুশীলন` },
+              { icon: "🎯", label: "বহুনির্বাচনী" },
+              { icon: "🔗", label: "জোড় মেলানো" },
+              { icon: "🔊", label: "শ্রুতি অনুশীলন" },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 + i * 0.08 }}
+                className="flex items-center gap-2 rounded-2xl glass border border-border/50 p-3"
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span className="font-bengali text-xs font-semibold">{item.label}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rewards preview */}
+        <div>
+          <h2 className="font-bengali text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+            পুরস্কার
+          </h2>
+          <div className="flex gap-2">
+            <div className="flex-1 flex items-center gap-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3">
+              <XpIcon className="h-6 w-6" />
+              <div>
+                <p className="font-extrabold text-lg tabular-nums leading-none">{xpReward}</p>
+                <p className="text-[10px] text-muted-foreground">XP</p>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3">
+              <GemIcon className="h-6 w-6" />
+              <div>
+                <p className="font-extrabold text-lg tabular-nums leading-none">{gemReward}</p>
+                <p className="text-[10px] text-muted-foreground">রত্ন</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Start button */}
+      <div className="px-5 py-4 border-t border-border/40 glass-strong safe-bottom">
+        <Button
+          onClick={onStart}
+          className="w-full h-13 py-3.5 gradient-emerald text-primary-foreground font-bold rounded-2xl shadow-glow-emerald tap-scale"
+        >
+          শুরু করুন · {exerciseCount}টি ধাপ
         </Button>
       </div>
     </div>

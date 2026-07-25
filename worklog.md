@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ COMPLETE — Core MVP + premium assets, browser-verified, lint clean**
+**Status: ✅ Phase 2 complete — bug fixes, new features (Shop + Lesson Intro), full gamification loop verified end-to-end**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -86,3 +86,64 @@ A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) bu
 
 ## Recommended Next Focus
 Generate premium visual assets (logo, app icon, lesson scene illustrations) to elevate the aesthetic from "great" to "world-class", then expand the vocabulary bank and add pronunciation scoring with the ASR skill.
+
+---
+
+## Phase 2 (Cron Review Round 1) — Bug Fixes + New Features
+
+### QA Methodology
+- Used `agent-browser` to screenshot all main screens (home, vocab, leaderboard, profile)
+- Used `z-ai vision` (VLM) to critically assess visual quality and identify concrete bugs
+- Tested the full lesson completion flow end-to-end via agent-browser
+
+### Bugs Found & Fixed
+
+1. **CRITICAL: Lesson completion API 405 error** — The client called `POST /api/lessons/complete` but the route was at `/api/lessons/[id]/complete`, so "complete" was matched as a lesson ID parameter (returning 405 Method Not Allowed). **Fix**: Created a static route at `src/app/api/lessons/complete/route.ts` so the static path takes precedence over the `[id]` dynamic route. Verified: `POST /api/lessons/complete` now returns 200, lesson progression persists (Lesson 1 → "সম্পন্ন · 3★", Lesson 2 unlocks).
+
+2. **Profile streak calendar empty when streak is a multiple of 7** — The math `(streak ?? 0) % 7` produced 0 when streak was 7, 14, 21, etc., showing an empty calendar. **Fix**: Replaced with a proper `WeeklyStreak` component that walks back `min(streak, 7)` days from `lastActiveDate`, marking the corresponding weekdays as active. Added today indicator (ring + dot) and per-day staggered animations.
+
+3. **English text in unit descriptions** — Seed data had "Begin here", "Keep going", "Master the basics" (English) while the rest of the UI is Bengali. **Fix**: Translated to "এখান থেকে শুরু করুন", "এগিয়ে যান", "ভিত্তি আয়ত্ত করুন". Ran a one-off DB update script (`prisma/fix-descriptions.ts`) to update existing 12 units without re-seeding.
+
+4. **Home lesson node used ▶️ emoji** — Heavy, inconsistent with the clean SVG icon system. **Fix**: Replaced with crisp SVG `PlayIcon` (triangle) for available lessons, `CheckIcon` for completed lessons. Added inner ring for depth, "START" / "BOSS" ribbons, reduced winding path offsets (42/60px instead of 55/80px) to prevent label overflow, and curved SVG connectors between nodes.
+
+5. **Leaderboard podium overlap** — Avatars, names, and medals were cluttered and overlapping. **Fix**: Redesigned the podium with clear vertical separation: medal → avatar → name → XP → pillar. Made the 1st place column taller (104px) with a crown badge, 2nd (76px) and 3rd (60px) shorter. Spring-animated entrance with staggered delays.
+
+### New Features Added
+
+1. **Shop Screen** (`src/components/app/shop-screen.tsx`) — Full gem economy with two categories:
+   - **Power-ups**: Heart Refill (30💎), Streak Freeze (50💎), XP Boost (40💎), Max Heart +1 (120💎)
+   - **Themes**: Emerald Night (owned), Royal Gold (80💎), Rose Dawn (80💎), Midnight Mosque (100💎)
+   - Gold gradient header with gem balance, category tabs, animated item grid, "earn more gems" CTA, streak protection info card
+   - Integrated into Profile menu and Home quick-action buttons
+
+2. **Lesson Intro Screen** — Premium pre-lesson preview showing:
+   - Course-colored gradient header with lesson icon, title, description, boss badge
+   - "যা শিখবেন" (What you'll learn) grid: exercise count, MC, match-pairs, listening
+   - "পুরস্কার" (Rewards) preview: XP + Gems
+   - Prominent "শুরু করুন · Nটি ধাপ" start button
+   - Spring-animated icon entrance, staggered content reveal
+
+3. **Home Quick-Action Buttons** — Added Shop (gold gradient) + Practice (glass) buttons below the daily goal banner for quick access to the gem economy and vocabulary review.
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Lesson completion flow: MC → match-pairs → listen → fill-blank → translate → completion screen with confetti + stars → home shows progression (VLM-verified)
+- ✅ `POST /api/lessons/complete` returns 200 (was 405)
+- ✅ Profile streak calendar shows lit indicators (VLM-verified)
+- ✅ Leaderboard podium: no overlaps, proper heights (VLM-verified)
+- ✅ Home: crisp SVG icons, clean winding path (VLM-verified)
+- ✅ Shop screen: clean grid layout, correct pricing (VLM-verified)
+- ✅ Lesson intro: polished, premium, clear rewards (VLM-verified)
+
+### Remaining Known Issues (minor, pre-existing)
+- Next.js dev tools "N" badge appears in bottom-left during dev (production-only, not a real bug)
+- Local gem count may show inflated values from accumulated localStorage across test sessions (cosmetic; server-side values are correct)
+- Some translate exercises show duplicate Arabic options due to seed shuffling (cosmetic; both options accept the correct answer)
+
+### Recommended Next Focus (Phase 3)
+1. Expand vocabulary bank to 200+ words with richer categories
+2. Add ASR pronunciation scoring (using ASR skill) for listen/speak exercises
+3. Admin CRUD for content management (currently read-only analytics)
+4. Weekly league promotion/demotion cron logic
+5. PWA service worker for true offline-first
+6. Streak freeze consumption logic (currently purchase-only, no auto-consume on missed day)
