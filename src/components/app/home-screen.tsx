@@ -422,7 +422,7 @@ function LessonNode({
           )}
           {status === "completed" && (
             <p className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              সম্পন্ন · {stars}★
+              {stars}★ · অনুশীলন করুন
             </p>
           )}
           {status === "locked" && (

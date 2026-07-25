@@ -85,6 +85,7 @@ export function LessonScreen({ lessonId }: { lessonId: string }) {
         exerciseCount={data.lesson.exercises.length}
         courseTitleBn={data.lesson.unit.course.titleBn}
         courseColor={data.lesson.unit.course.color}
+        progress={data.lesson.progress}
         onStart={() => setPhase("playing")}
         onExit={back}
       />
@@ -671,6 +672,7 @@ function LessonIntro({
   exerciseCount,
   courseTitleBn,
   courseColor,
+  progress,
   onStart,
   onExit,
 }: {
@@ -683,10 +685,13 @@ function LessonIntro({
   exerciseCount: number;
   courseTitleBn: string;
   courseColor: string;
+  progress: import("@/lib/types").LessonProgress | null;
   onStart: () => void;
   onExit: () => void;
 }) {
   const isBoss = type === "boss";
+  const isCompleted = progress?.status === "completed";
+  const existingStars = progress?.stars ?? 0;
   const headerGradient =
     courseColor === "emerald" ? "gradient-emerald" :
     courseColor === "gold" ? "gradient-gold" :
@@ -776,13 +781,32 @@ function LessonIntro({
         </div>
       </div>
 
+      {/* Previous best (if completed) */}
+      {isCompleted && (
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3 flex items-center gap-3">
+          <div className="flex gap-0.5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <StarIcon key={i} className="h-4 w-4" filled={i < existingStars} />
+            ))}
+          </div>
+          <div className="flex-1">
+            <p className="font-bengali text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              আগের সেরা ফলাফল
+            </p>
+            <p className="font-bengali text-[10px] text-muted-foreground">
+              {existingStars === 3 ? "নিখুঁত! আবার অনুশীলন করতে পারেন" : `${existingStars} তারকা — আরও ভালো করার সুযোগ আছে`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Start button */}
       <div className="px-5 py-4 border-t border-border/40 glass-strong safe-bottom">
         <Button
           onClick={onStart}
           className="w-full h-13 py-3.5 gradient-emerald text-primary-foreground font-bold rounded-2xl shadow-glow-emerald tap-scale"
         >
-          শুরু করুন · {exerciseCount}টি ধাপ
+          {isCompleted ? "অনুশীলন করুন" : "শুরু করুন"} · {exerciseCount}টি ধাপ
         </Button>
       </div>
     </div>

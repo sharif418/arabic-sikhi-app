@@ -145,6 +145,13 @@ export const api = {
         box: number;
         dayOfYear: number;
       }>("/api/vocabulary/word-of-day"),
+    categories: () =>
+      request<{
+        categories: Array<{ category: string; total: number; learned: number; pct: number }>;
+        totalWords: number;
+        totalLearned: number;
+        overallPct: number;
+      }>("/api/vocabulary/categories"),
   },
   leaderboard: (league?: string) =>
     request<{
@@ -185,6 +192,16 @@ export const api = {
         unlockedAt: string;
       }>;
     }>("/api/user/stats"),
+  activity: (weeks = 12) =>
+    request<{
+      weeks: Array<Array<{ date: string; count: number; level: 0 | 1 | 2 | 3 | 4 }>>;
+      totalCompletions: number;
+      activeDays: number;
+      todayCount: number;
+      streak: number;
+      startDate: string;
+      endDate: string;
+    }>(`/api/user/activity?weeks=${weeks}`),
   achievements: () =>
     request<{
       achievements: Array<{

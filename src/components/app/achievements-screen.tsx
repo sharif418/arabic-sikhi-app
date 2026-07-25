@@ -88,6 +88,22 @@ export function AchievementsScreen() {
                         style={{ background: `radial-gradient(circle at center, ${a.color}, transparent 70%)` }}
                       />
                     )}
+                    {/* NEW badge for recently unlocked (within 24h) */}
+                    {isUnlocked && unlocked.has(a.slug) && (() => {
+                      const unlockedAt = unlocked.get(a.slug);
+                      if (!unlockedAt) return null;
+                      const hoursAgo = (Date.now() - new Date(unlockedAt).getTime()) / (1000 * 60 * 60);
+                      if (hoursAgo > 24) return null;
+                      return (
+                        <motion.div
+                          initial={{ scale: 0, rotate: -15 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          className="absolute -top-1.5 -right-1.5 z-20 flex items-center rounded-full gradient-gold px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-glow-gold animate-pulse-glow"
+                        >
+                          NEW
+                        </motion.div>
+                      );
+                    })()}
                     <div
                       className={cn(
                         "relative flex h-16 w-16 items-center justify-center rounded-2xl text-3xl mb-2",

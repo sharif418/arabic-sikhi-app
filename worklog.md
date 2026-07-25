@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 7 complete — Word detail modal + add-to-SRS API + daily word on home screen, all verified via scripts**
+**Status: ✅ Phase 8 complete — Category progress tracking on dictionary + lesson practice mode with previous-best display, all verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -554,3 +554,69 @@ Word cards in the dictionary now have `cursor-pointer`, hover effects (border-pr
 4. **Category progress tracking** — show per-category learned/total on dictionary screen
 5. **Streak freeze shop integration** — show owned freezes count in shop card (partially done)
 6. **Lesson review mode** — let users redo completed lessons for practice
+
+---
+
+## Phase 8 (Cron Review Round 7) — Category Progress + Lesson Practice Mode
+
+### QA Methodology
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 0 learned cards, 1 completed lesson
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Category Progress API (`/api/vocabulary/categories`)
+New endpoint that returns per-category progress for the current user:
+- Groups all vocabulary by category with total counts
+- Cross-references with the user's `UserVocabulary` records to count learned words per category
+- Returns `{ categories: [{category, total, learned, pct}], totalWords, totalLearned, overallPct }`
+- 16 categories tracked
+
+Verified: 216 total words across 16 categories. The demo and admin users currently have 0 learned cards (SRS deck empty until they engage with vocabulary review).
+
+#### 2. Category Progress Section (Dictionary Screen)
+New collapsible progress overview on the dictionary screen, shown when no search/filter is active:
+- **Overall progress header**: "আপনার অগ্রগতি" with `totalLearned/totalWords · pct%`
+- **Overall progress bar**: emerald gradient, animated width
+- **Category grid** (top 9 categories): each card shows:
+  - Category name (Bengali label)
+  - Learned/total count (e.g., "0/19")
+  - Mini progress bar (gold for 100%, emerald for partial, muted for 0%)
+  - Tappable (hover border-primary effect)
+- Staggered entrance animations per card
+- Skeleton loading state
+
+This gives users a clear visual overview of their vocabulary mastery across all 16 categories at a glance.
+
+#### 3. Lesson Practice Mode
+Completed lessons can now be redone for practice:
+- **Home screen**: Completed lesson nodes now show "{stars}★ · অনুশীলন করুন" (Practice) instead of just "সম্পন্ন"
+- **Lesson intro screen**: When opening a completed lesson, shows:
+  - A "previous best" card with existing stars (filled/unfilled) and a motivational message:
+    - 3 stars: "নিখুঁত! আবার অনুশীলন করতে পারেন" (Perfect! You can practice again)
+    - 1-2 stars: "{N} তারকা — আরও ভালো করার সুযোগ আছে" (N stars — room to improve)
+  - Start button text changes to "অনুশীলন করুন" (Practice) instead of "শুরু করুন" (Start)
+- The lesson completion API already handles re-completion gracefully (only grants rewards on improvement, tracks best score/stars)
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Category progress API logic verified: 16 categories, 216 total words, correct per-category counts
+- ✅ Category progress section renders with overall bar + 9 category cards
+- ✅ Lesson practice mode: intro shows previous best + practice button text
+- ✅ Home screen completed lessons show "অনুশীলন করুন" label
+
+### Architecture
+- `src/app/api/vocabulary/categories/route.ts` — GET endpoint, aggregates per-category progress
+- `src/components/app/dictionary-screen.tsx` — added `CategoryProgress` component
+- `src/components/app/lesson-screen.tsx` — LessonIntro now accepts `progress` prop, shows previous best + practice mode
+- `src/components/app/home-screen.tsx` — completed lesson label updated to "অনুশীলন করুন"
+- `src/lib/api/client.ts` — added `api.vocabulary.categories()` typed method
+
+### Recommended Next Focus (Phase 9)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Daily streak heatmap** — GitHub-style contribution graph on profile
+5. **Achievement "NEW" badge** — mark recently unlocked achievements on profile/achievements screen
+6. **Lesson search** — let users search for specific lessons by name

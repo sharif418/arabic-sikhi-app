@@ -94,6 +94,11 @@ export function ProfileScreen() {
         </div>
       </div>
 
+      {/* Activity heatmap */}
+      <div className="px-4 mt-3">
+        <StreakHeatmap />
+      </div>
+
       {/* Achievements */}
       <div className="px-4 mt-4">
         <div className="flex items-center justify-between mb-2">
@@ -115,23 +120,32 @@ export function ProfileScreen() {
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-2">
-            {achievements.slice(0, 4).map((a) => (
-              <motion.div
-                key={a.id}
-                whileTap={{ scale: 0.95 }}
-                className="flex flex-col items-center rounded-2xl glass border border-border/50 p-2"
-              >
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl text-xl mb-1"
-                  style={{ backgroundColor: a.color + "30" }}
+            {achievements.slice(0, 4).map((a) => {
+              const hoursAgo = (Date.now() - new Date(a.unlockedAt).getTime()) / (1000 * 60 * 60);
+              const isNew = hoursAgo <= 24;
+              return (
+                <motion.div
+                  key={a.id}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative flex flex-col items-center rounded-2xl glass border border-border/50 p-2"
                 >
-                  {a.icon}
-                </div>
-                <p className="font-bengali text-[9px] font-bold text-center leading-tight line-clamp-2">
-                  {a.titleBn}
-                </p>
-              </motion.div>
-            ))}
+                  {isNew && (
+                    <span className="absolute -top-1 -right-1 z-10 rounded-full gradient-gold px-1 py-0.5 text-[7px] font-extrabold text-white shadow-soft animate-pulse-glow">
+                      NEW
+                    </span>
+                  )}
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-xl mb-1"
+                    style={{ backgroundColor: a.color + "30" }}
+                  >
+                    {a.icon}
+                  </div>
+                  <p className="font-bengali text-[9px] font-bold text-center leading-tight line-clamp-2">
+                    {a.titleBn}
+                  </p>
+                </motion.div>
+              );
+            })}
             {achievements.length === 0 && (
               <p className="font-bengali col-span-4 text-center text-xs text-muted-foreground py-4">
                 অর্জন আনলক করতে লেসন সম্পন্ন করুন

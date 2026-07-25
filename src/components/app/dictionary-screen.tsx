@@ -118,6 +118,9 @@ export function DictionaryScreen() {
         </div>
       </div>
 
+      {/* Category progress overview (only when no search/filter active) */}
+      {!search && !category && <CategoryProgress />}
+
       {/* Word list */}
       <div className="flex-1 overflow-y-auto premium-scroll p-3 space-y-2">
         {isLoading ? (
@@ -370,5 +373,77 @@ function WordDetailModal({
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ---------- Category Progress Section ---------- */
+function CategoryProgress() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["vocab-categories"],
+    queryFn: api.vocabulary.categories,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 border-b border-border/40">
+        <Skeleton className="h-24 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!data || data.categories.length === 0) return null;
+
+  return (
+    <div className="px-4 py-3 border-b border-border/40 glass">
+      {/* Overall progress */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">📊</span>
+          <h3 className="font-bengali text-xs font-bold">আপনার অগ্রগতি</h3>
+        </div>
+        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+          {data.totalLearned}/{data.totalWords} · {data.overallPct}%
+        </span>
+      </div>
+
+      {/* Overall progress bar */}
+      <div className="h-2 rounded-full bg-muted overflow-hidden mb-3">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${data.overallPct}%` }}
+          transition={{ duration: 0.6 }}
+          className="h-full gradient-emerald rounded-full"
+        />
+      </div>
+
+      {/* Category grid (top 6 by total) */}
+      <div className="grid grid-cols-3 gap-1.5">
+        {data.categories.slice(0, 9).map((c, i) => (
+          <motion.button
+            key={c.category}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.04 }}
+            className="rounded-xl bg-card/50 border border-border/30 p-2 text-center tap-scale hover:border-primary/40"
+          >
+            <p className="text-[9px] font-bold text-muted-foreground truncate">
+              {CATEGORY_LABELS[c.category] ?? c.category}
+            </p>
+            <p className="text-sm font-extrabold tabular-nums mt-0.5">
+              {c.learned}<span className="text-muted-foreground text-[10px]">/{c.total}</span>
+            </p>
+            <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  c.pct === 100 ? "gradient-gold" : c.pct > 0 ? "gradient-emerald" : "bg-muted-foreground/20"
+                )}
+                style={{ width: `${c.pct}%` }}
+              />
+            </div>
+          </motion.button>
+        ))}
+      </div>
+    </div>
   );
 }
