@@ -95,6 +95,35 @@ export const api = {
         }>;
         count: number;
       }>(`/api/vocabulary?mode=${mode}${category ? `&category=${category}` : ""}`),
+    browse: (params?: { q?: string; category?: string; page?: number; limit?: number }) => {
+      const sp = new URLSearchParams();
+      sp.set("mode", "browse");
+      if (params?.q) sp.set("q", params.q);
+      if (params?.category) sp.set("category", params.category);
+      if (params?.page) sp.set("page", String(params.page));
+      if (params?.limit) sp.set("limit", String(params.limit));
+      return request<{
+        mode: string;
+        cards: Array<{
+          id: string;
+          arabic: string;
+          transliteration: string;
+          bangla: string;
+          english: string;
+          partOfSpeech: string | null;
+          category: string | null;
+          exampleArabic: string | null;
+          exampleBangla: string | null;
+          difficulty: number;
+          learned: boolean;
+          box: number;
+        }>;
+        total: number;
+        page: number;
+        totalPages: number;
+        categories: string[];
+      }>(`/api/vocabulary?${sp.toString()}`);
+    },
     review: (vocabularyId: string, quality: number) =>
       request<{ updated: unknown; xpAwarded: number; achievementsUnlocked?: Array<{ slug: string; titleBn: string; icon: string; color: string }> }>(
         "/api/vocabulary/review",

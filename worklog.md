@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 5 complete — Achievement auto-unlock system + weekly league promotion/demotion, 15 retroactive achievements unlocked, all verified via scripts**
+**Status: ✅ Phase 6 complete — Vocabulary expanded 31→216 words across 16 categories, dictionary browser screen with search/filter/TTS, all verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -387,3 +387,93 @@ New UI component in the admin overview tab:
 4. **More vocabulary content** — expand to 200+ words with richer categories
 5. **Achievement notifications on profile/achievements screen** — "NEW" badge for recently unlocked
 6. **League reset scheduling** — auto-run weekly via cron (currently manual admin button)
+
+---
+
+## Phase 6 (Cron Review Round 5) — Vocabulary Expansion + Dictionary Browser
+
+### QA Methodology
+- Verified data state via direct Prisma scripts: 31 vocab words, 48 lessons, 17 users, 8 achievements
+- Identified the **vocabulary bank was too small (31 words)** — the highest-value content gap for a language learning app
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Vocabulary Bank Expansion (31 → 216 words)
+Created `prisma/expand-vocabulary.ts` script that added **185 new authentic Quranic Arabic words** (18 duplicates skipped) across **16 categories**:
+- **greeting** (18): সালাম, শুকরিয়া, বিসমিল্লাহ, আলহামদুলিল্লাহ, ইনশাআল্লাহ, মাশাআল্লাহ, etc.
+- **family** (13): দাদা, দাদি, ভাই, বোন, স্বামী, স্ত্রী, বন্ধু, প্রতিবেশী, etc.
+- **food** (14): দুধ, মাংস, মাছ, আপেল, খেজুর, মধু, চাল, চা, কফি, etc.
+- **numbers** (12): ১-১০, শত, সহস্র
+- **colors** (8): লাল, নীল, সবুজ, হলুদ, সাদা, কালো, কমলা, বাদামী
+- **nature** (17): আকাশ, পৃথিবী, পাহাড়, সমুদ্র, নদী, গাছ, ফুল, বৃষ্টি, বাতাস, etc.
+- **animals** (11): সিংহ, বিড়াল, কুকুর, ঘোড়া, উট, গরু, মুরগি, etc.
+- **body** (11): মাথা, চোখ, কান, নাক, মুখ, হাত, পা, হৃদয়, etc.
+- **verbs** (16): লিখেছে, পড়েছে, গিয়েছে, খেয়েছে, ঘুমিয়েছে, দেখেছে, etc.
+- **adjectives** (19): নতুন, পুরোনো, লম্বা, ছোট, সহজ, কঠিন, শক্তিশালী, etc.
+- **places** (9): মসজিদ, ঘর, স্কুল, শহর, গ্রাম, বাজার, হাসপাতাল, etc.
+- **time** (13): আজ, আগামীকাল, গতকাল, সকাল, সন্ধ্যা, সপ্তাহ, মাস, বছর, etc.
+- **deen** (22): আল্লাহ, রব, ঈমান, ইসলাম, কুরআন, নবী, রাসূল, সালাত, যাকাত, হজ, জান্নাত, etc.
+- **objects** (14): চাবি, চেয়ার, টেবিল, দরজা, জানালা, ঘড়ি, ফোন, গাড়ি, etc.
+- **people** (9): শিক্ষক, ছাত্র, ডাক্তার, প্রকৌশলী, ব্যবসায়ী, etc.
+- **phrases** (9): এটি কী?, আপনি কে?, কোথায়?, কখন?, কেন?, হ্যাঁ, না, etc.
+
+Each word includes: Arabic text, transliteration, Bengali meaning, English meaning, part of speech, category, difficulty (1-5), and some have example sentences.
+
+#### 2. Vocabulary Browse API (`mode=browse`)
+Extended `/api/vocabulary` with a new `browse` mode:
+- **Search** across Arabic, transliteration, Bengali, and English text
+- **Category filter** with all 16 categories
+- **Pagination** (20 per page, configurable limit)
+- **Learned status**: marks words the user has already studied (via `UserVocabulary` records)
+- Returns total count, page, totalPages, and category list
+- Ordered by difficulty (easiest first)
+
+#### 3. Dictionary Browser Screen (`src/components/app/dictionary-screen.tsx`)
+New full-screen dictionary with:
+- **Aurora gradient header** with Islamic pattern, total word count, category count
+- **Search bar** with glass-style input on the gradient background
+- **Category chips** with Bengali labels (শুভেচ্ছা, পরিবার, খাবার, etc.)
+- **Word cards** showing:
+  - Difficulty stars (1-5, amber filled)
+  - Arabic letter avatar with audio button (TTS pronunciation)
+  - Arabic word + transliteration
+  - Bengali + English meanings
+  - Category + part-of-speech badges
+  - Learned checkmark badge (green) for studied words
+- **Pagination** footer with prev/next buttons and page indicator
+- **Empty state** with search icon and helpful message
+- Staggered card entrance animations
+
+#### 4. Dictionary Access from Vocabulary Home
+Added a "অভিধান ব্রাউজ করুন" (Browse Dictionary) button on the vocabulary home screen with a gold gradient icon, description "২০০+ আরবি শব্দ অনুসন্ধান করুন", and chevron navigation.
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Vocabulary expanded: 216 words across 16 categories (verified via Prisma script)
+- ✅ Browse query logic verified: returns words sorted by difficulty, proper pagination
+- ✅ Fixed 1 word with empty-string category → now 16 clean categories
+- ✅ All 185 new words have transliteration, Bengali + English meanings, difficulty ratings
+- ✅ Dictionary screen registered in screen router as full-screen experience
+
+### Content Quality
+The vocabulary is authentic Quranic/Modern Standard Arabic, carefully curated for Bengali-speaking learners:
+- Difficulty 1-2: Common everyday words (greetings, family, basic objects)
+- Difficulty 3: Intermediate vocabulary (verbs, adjectives, places)
+- Difficulty 4-5: Advanced/deeper deen terms (jahannam, tawba, wudu, adhan)
+- Each category builds progressively from easy to hard
+
+### Architecture
+- `prisma/expand-vocabulary.ts` — idempotent expansion script (skips duplicates by Arabic text)
+- `src/app/api/vocabulary/route.ts` — extended with `browse` mode (search + pagination + learned status)
+- `src/components/app/dictionary-screen.tsx` — self-contained browser with search, filter, TTS
+- `src/lib/stores/nav-store.ts` — added `dictionary` screen type
+- `src/lib/api/client.ts` — added `api.vocabulary.browse()` typed method
+
+### Recommended Next Focus (Phase 7)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Category progress tracking** — show per-category learned/total on dictionary screen
+5. **Word detail modal** — tap a dictionary word to see full details + examples + add to SRS
+6. **Daily word notification** — push a new word each day to learn

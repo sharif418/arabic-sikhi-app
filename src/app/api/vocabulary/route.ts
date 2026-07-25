@@ -52,5 +52,60 @@ export const GET = apiHandler(async (req) => {
     return ok({ mode: "all", cards: vocab, count: vocab.length });
   }
 
+  if (mode === "browse") {
+    const q = url.searchParams.get("q");
+    const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
+    const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? "20")));
+
+    const where = {
+      ...(category ? { category } : {}),
+      ...(q
+        ? {
+            OR: [
+              { arabic: { contains: q } },
+              { transliteration: { contains: q } },
+              { bangla: { contains: q } },
+              { english: { contains: q } },
+            ],
+          }
+        : {}),
+    };
+
+    const [words, total, categories] = await Promise.all([
+      db.vocabulary.findMany({
+        where,
+        orderBy: { difficulty: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.vocabulary.count({ where }),
+      db.vocabulary.findMany({
+        where: { NOT: { category: null } },
+        select: { category: true },
+        distinct: ["category"],
+      }),
+    ]);
+
+    // Get the user's learned set for marking
+    const learned = await db.userVocabulary.findMany({
+      where: { userId: session.id },
+      select: { vocabularyId: true, box: true },
+    });
+    const learnedMap = new Map(learned.map((l) => [l.vocabularyId, l.box]));
+
+    return ok({
+      mode: "browse",
+      cards: words.map((w) => ({
+        ...w,
+        learned: learnedMap.has(w.id),
+        box: learnedMap.get(w.id) ?? 0,
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      categories: categories.map((c) => c.category).filter(Boolean),
+    });
+  }
+
   return fail("Invalid mode", 400);
 });

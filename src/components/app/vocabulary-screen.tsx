@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { useGame } from "@/lib/stores/game-store";
+import { useNav } from "@/lib/stores/nav-store";
 import { useSpeech } from "@/hooks/use-speech";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Volume2, RotateCcw, Check, X, Brain, Flame, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Volume2, RotateCcw, Check, X, Brain, Flame, Sparkles, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -214,6 +215,7 @@ function VocabHome({ onStart }: { onStart: () => void }) {
   });
   const count = data?.count ?? 0;
   const mode = data?.mode ?? "due";
+  const { navigate } = useNav();
 
   return (
     <div className="flex h-full flex-col px-5 py-6 overflow-y-auto premium-scroll">
@@ -244,6 +246,23 @@ function VocabHome({ onStart }: { onStart: () => void }) {
           </Button>
         </div>
       </div>
+
+      {/* Dictionary browse button */}
+      <button
+        onClick={() => navigate({ name: "dictionary" })}
+        className="mt-3 flex items-center gap-3 rounded-2xl glass border border-border/50 p-4 shadow-soft tap-scale w-full text-left"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl gradient-gold text-white">
+          <BookOpen className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bengali text-sm font-bold">অভিধান ব্রাউজ করুন</p>
+          <p className="font-bengali text-[11px] text-muted-foreground mt-0.5">২০০+ আরবি শব্দ অনুসন্ধান করুন</p>
+        </div>
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </button>
 
       {/* Tips */}
       <div className="mt-6 space-y-3">

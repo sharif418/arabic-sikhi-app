@@ -15,10 +15,11 @@ import { AiTutorScreen } from "./ai-tutor-screen";
 import { SettingsScreen } from "./settings-screen";
 import { AdminScreen } from "./admin-screen";
 import { ShopScreen } from "./shop-screen";
+import { DictionaryScreen } from "./dictionary-screen";
 import { AnimatePresence, motion } from "framer-motion";
 
 /** Screens that should NOT show the top bar / bottom nav (full-screen experiences). */
-const FULLSCREEN_SCREENS = new Set(["onboarding", "auth", "lesson", "ai-tutor", "shop"]);
+const FULLSCREEN_SCREENS = new Set(["onboarding", "auth", "lesson", "ai-tutor", "shop", "dictionary"]);
 
 export function ScreenRouter() {
   const screen = useCurrentScreen();
@@ -30,6 +31,7 @@ export function ScreenRouter() {
     return <LessonScreen lessonId={screen.lessonId} />;
   if (screen.name === "ai-tutor") return <AiTutorScreen />;
   if (screen.name === "shop") return <ShopScreen />;
+  if (screen.name === "dictionary") return <DictionaryScreen />;
 
   // App shell with header + bottom nav
   return (

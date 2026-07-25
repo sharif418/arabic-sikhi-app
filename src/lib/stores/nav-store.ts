@@ -9,6 +9,7 @@ export type Screen =
   | { name: "lesson"; lessonId: string }
   | { name: "vocabulary" }
   | { name: "vocab-deck"; deckId?: string }
+  | { name: "dictionary" }
   | { name: "leaderboard" }
   | { name: "profile" }
   | { name: "achievements" }
