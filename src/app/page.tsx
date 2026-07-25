@@ -6,6 +6,8 @@ import { useNav } from "@/lib/stores/nav-store";
 import { useGame } from "@/lib/stores/game-store";
 import { ScreenRouter } from "@/components/app/screen-router";
 import { StreakMilestoneWatcher } from "@/components/app/streak-milestone-watcher";
+import { OfflineIndicator } from "@/components/app/offline-indicator";
+import { InstallPrompt } from "@/components/app/install-prompt";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -75,8 +77,10 @@ export default function Home() {
 
   return (
     <div className="relative mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-background shadow-2xl md:my-0">
+      <OfflineIndicator />
       <ScreenRouter />
       {user && <StreakMilestoneWatcher streak={user.streak} />}
+      <InstallPrompt />
     </div>
   );
 }

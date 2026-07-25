@@ -1,18 +1,53 @@
 {
   "name": "আরবি শিখি — Arabic Sikhi",
   "short_name": "আরবি শিখি",
-  "description": "Premium Quranic Arabic Learning App by As-Sunnah Foundation",
+  "description": "Premium Quranic Arabic Learning App by As-Sunnah Foundation — Gamified lessons, spaced repetition vocabulary, AI tutor, and more.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f7f3ea",
   "theme_color": "#1a2520",
+  "categories": ["education", "productivity"],
+  "lang": "bn",
+  "dir": "ltr",
   "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/app-icon.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "লেসন",
+      "short_name": "শেখা",
+      "description": "শেখা শুরু করুন",
+      "url": "/?action=learn"
+    },
+    {
+      "name": "অভিধান",
+      "short_name": "অভিধান",
+      "description": "শব্দ খুঁজুন",
+      "url": "/?action=dictionary"
+    },
+    {
+      "name": "AI শিক্ষক",
+      "short_name": "AI",
+      "description": "AI শিক্ষকের সাথে কথা বলুন",
+      "url": "/?action=tutor"
     }
   ]
 }
