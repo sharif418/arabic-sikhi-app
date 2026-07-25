@@ -30,8 +30,8 @@ export const POST = apiHandler(async (req) => {
 
   if (user.gems < cost) return fail("পর্যাপ্ত রত্ন নেই", 400);
 
-  let updateData: Record<string, unknown> = { gems: { decrement: cost } };
-  let result: Record<string, unknown> = { cost };
+  const updateData: Record<string, unknown> = { gems: { decrement: cost } };
+  const result: Record<string, unknown> = { cost };
 
   switch (itemId) {
     case "heart-refill":

@@ -8,43 +8,50 @@ const __dirname = dirname(__filename);
 
 const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
   rules: {
-    // TypeScript rules
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-unused-vars": "off",
-    "@typescript-eslint/no-non-null-assertion": "off",
-    "@typescript-eslint/ban-ts-comment": "off",
-    "@typescript-eslint/prefer-as-const": "off",
-    "@typescript-eslint/no-unused-disable-directive": "off",
-    
-    // React rules
-    "react-hooks/exhaustive-deps": "off",
-    "react-hooks/purity": "off",
+    // TypeScript rules — enforce type safety
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+    "@typescript-eslint/no-non-null-assertion": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn",
+
+    // React rules — enforce hooks correctness
+    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/purity": "off", // Too strict for animation components using Math.random()
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",
-    "react-compiler/react-compiler": "off",
-    
+
     // Next.js rules
     "@next/next/no-img-element": "off",
-    "@next/next/no-html-link-for-pages": "off",
-    
-    // General JavaScript rules
-    "prefer-const": "off",
-    "no-unused-vars": "off",
-    "no-console": "off",
-    "no-debugger": "off",
-    "no-empty": "off",
-    "no-irregular-whitespace": "off",
-    "no-case-declarations": "off",
-    "no-fallthrough": "off",
-    "no-mixed-spaces-and-tabs": "off",
-    "no-redeclare": "off",
+
+    // General JavaScript rules — enforce code quality
+    // Note: no-undef is disabled for TS files since TypeScript's type checker already handles this.
+    // The rule incorrectly flags React.* namespace references in .tsx files.
     "no-undef": "off",
-    "no-unreachable": "off",
-    "no-useless-escape": "off",
+    "prefer-const": "warn",
+    "no-console": ["warn", { allow: ["warn", "error"] }],
+    "no-debugger": "error",
+    "no-empty": "warn",
+    "no-unreachable": "error",
+    "no-case-declarations": "off",
+    "no-fallthrough": "error",
+    "no-mixed-spaces-and-tabs": "error",
+    "no-redeclare": "error",
+    "no-useless-escape": "warn",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  ignores: [
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "examples/**",
+    "skills/**",
+    "prisma/seed.ts",
+    "prisma/*.ts",
+    "public/sw.js"
+  ]
 }];
 
 export default eslintConfig;

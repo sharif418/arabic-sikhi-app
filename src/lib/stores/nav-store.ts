@@ -20,7 +20,7 @@ export type Screen =
   | { name: "admin" }
   | { name: "settings" };
 
-type TabName = "home" | "vocabulary" | "leaderboard" | "profile";
+export type TabName = "home" | "vocabulary" | "leaderboard" | "profile";
 
 interface NavState {
   /** Stack of screens for back navigation. Last item is current. */

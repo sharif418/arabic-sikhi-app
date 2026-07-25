@@ -148,7 +148,22 @@ export function VocabularyScreen() {
   );
 }
 
-function FlipCard({ card, flipped, onFlip, speak }: { card: any; flipped: boolean; onFlip: () => void; speak: (t: string, l?: string) => void }) {
+interface VocabCardData {
+  id: string;
+  arabic: string;
+  transliteration: string;
+  bangla: string;
+  english: string;
+  partOfSpeech?: string | null;
+  category?: string | null;
+  exampleArabic?: string | null;
+  exampleBangla?: string | null;
+  difficulty: number;
+  isNew?: boolean;
+  box?: number;
+}
+
+function FlipCard({ card, flipped, onFlip, speak }: { card: VocabCardData | null; flipped: boolean; onFlip: () => void; speak: (t: string, l?: string) => void }) {
   if (!card) return null;
   return (
     <button

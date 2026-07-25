@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { apiHandler, ok } from "@/lib/api/responses";
 import { requireAdmin } from "@/lib/api/admin-guard";
 
 /** Get day key (YYYY-MM-DD) for a date. */

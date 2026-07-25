@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/auth";
+import { hashPassword } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { apiHandler, fail, ok } from "@/lib/api/responses";
 

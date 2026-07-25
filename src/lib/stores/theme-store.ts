@@ -21,6 +21,8 @@ export interface CustomTheme {
   gold: string;
   /** Icon */
   icon: string;
+  /** Cost in gems (0 = free) */
+  cost: number;
 }
 
 export const THEMES: Record<ThemeId, CustomTheme> = {
@@ -34,6 +36,7 @@ export const THEMES: Record<ThemeId, CustomTheme> = {
     glow: "shadow-glow-emerald",
     gold: "oklch(0.78 0.14 82)",
     icon: "🌿",
+    cost: 0,
   },
   gold: {
     id: "gold",
@@ -45,6 +48,7 @@ export const THEMES: Record<ThemeId, CustomTheme> = {
     glow: "shadow-glow-gold",
     gold: "oklch(0.78 0.14 82)",
     icon: "👑",
+    cost: 80,
   },
   rose: {
     id: "rose",
@@ -56,6 +60,7 @@ export const THEMES: Record<ThemeId, CustomTheme> = {
     glow: "shadow-glow-gold",
     gold: "oklch(0.78 0.14 82)",
     icon: "🌸",
+    cost: 80,
   },
   midnight: {
     id: "midnight",
@@ -67,6 +72,7 @@ export const THEMES: Record<ThemeId, CustomTheme> = {
     glow: "shadow-glow-emerald",
     gold: "oklch(0.82 0.14 85)",
     icon: "🕌",
+    cost: 100,
   },
 };
 

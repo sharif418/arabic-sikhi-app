@@ -19,7 +19,13 @@ const createLessonSchema = z.object({
   xpReward: z.number().int().min(0).default(10),
   gemReward: z.number().int().min(0).default(2),
   icon: z.string().default("⭐"),
-  exercises: z.array(z.any()).default([]),
+  exercises: z.array(
+    z.object({
+      type: z.enum(["multiple-choice", "match-pairs", "build-sentence", "fill-blank", "listen-choose", "translate"]),
+      prompt: z.string(),
+      promptBn: z.string().optional(),
+    }).passthrough()
+  ).default([]),
 });
 
 export const GET = apiHandler(async (req) => {

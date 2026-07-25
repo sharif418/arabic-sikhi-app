@@ -1,5 +1,5 @@
 import { getSessionUser } from "@/lib/session";
-import { fail } from "@/lib/api/responses";
+// fail is available via apiHandler
 import type { SessionUser } from "@/lib/types";
 
 /** Returns the session user if they are an admin, otherwise a 403 response tuple. */

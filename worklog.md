@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 15 complete — Friends/social features (Follow model, 3 API endpoints, friends screen with suggestions+following tabs), pushed to GitHub**
+**Status: ✅ Phase 16 complete — Comprehensive production-readiness audit (3 subagents), fixed 20+ critical/high issues: session token forgery, ignoreBuildErrors, --accept-data-loss, any types, AI tutor auth, error boundaries, security headers. Lint: 0 errors (was 85). Pushed to GitHub.**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -1152,3 +1152,1510 @@ Reusable avatar with:
 4. **Lesson content search** — search within lesson exercises (not just titles)
 5. **Offline lesson pre-caching** — pre-cache next 3 lessons for true offline learning
 6. **Friend leaderboard** — separate leaderboard showing only friends
+
+---
+
+## Architecture Audit Report (AUDIT-ARCH-1)
+
+**Auditor:** CTO-level Principal Software Architect (sub-agent)
+**Scope:** Production-readiness, security, type-safety, schema design, and API hardening audit across `next.config.ts`, `package.json`, `tsconfig.json`, `prisma/schema.prisma`, `eslint.config.mjs`, `.env`, `src/lib/`, and `src/app/api/`.
+**Verdict:** ❌ Not production-ready. Multiple Critical and High severity issues must be resolved before any public deploy. The codebase is functionally feature-complete (Phase 15) but has been shipping with type-checking and ESLint effectively disabled, no security headers, no rate limiting, and an unsafe DB push script.
+
+### Summary
+
+| Severity | Count |
+|----------|-------|
+| Critical | 6 |
+| High     | 14 |
+| Medium   | 13 |
+| Low      | 9 |
+| **Total** | **42** |
+
+---
+
+### 1. `next.config.ts`
+
+#### Finding 1.1 — `typescript.ignoreBuildErrors: true` ships broken TypeScript to production
+- **File:** `next.config.ts:6-8`
+- **Issue:** `ignoreBuildErrors: true` causes `next build` to skip type-checking entirely. Any type error — including ones that cause runtime crashes — is silently swallowed at build time. This is the single most dangerous setting in the project. Combined with `noImplicitAny: false` in `tsconfig.json` (see Finding 3.2), the codebase has been accumulating untyped code that the build never validates.
+- **Severity:** Critical
+- **Fix:**
+```ts
+const nextConfig: NextConfig = {
+  output: "standalone",
+  typescript: {
+    ignoreBuildErrors: false, // enforce type safety at build time
+  },
+  reactStrictMode: true,
+  // ...
+};
+```
+Also add a separate `typecheck` script (`tsc --noEmit`) to `package.json` and run it in CI.
+
+#### Finding 1.2 — `reactStrictMode: false` hides bugs in development
+- **File:** `next.config.ts:9`
+- **Issue:** Strict Mode is off, so double-invocation of effects, state setters, and render functions is not surfaced in dev. This has likely masked stale-closure and side-effect bugs (especially in `useEffect` hooks like `page.tsx`'s streak-check effect).
+- **Severity:** High
+- **Fix:** Set `reactStrictMode: true`.
+
+#### Finding 1.3 — Missing production hardening options
+- **File:** `next.config.ts`
+- **Issue:** No `poweredByHeader: false` (leaks `X-Powered-By: Next.js` — aids attacker reconnaissance), no `compress` (defaults to true but should be explicit), no `productionBrowserSourceMaps: false`, no `eslint.ignoreDuringBuilds: false` (defaults are correct but should be explicit for auditability), no `headers()` for security headers (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
+- **Severity:** High
+- **Fix:**
+```ts
+const nextConfig: NextConfig = {
+  output: "standalone",
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
+  productionBrowserSourceMaps: false,
+  typescript: { ignoreBuildErrors: false },
+  eslint: { ignoreDuringBuilds: false },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // CSP should be added once inline styles from Tailwind/Framer are nonced/hashed
+        ],
+      },
+    ];
+  },
+};
+```
+
+---
+
+### 2. `package.json`
+
+#### Finding 2.1 — `db:push` script uses `--accept-data-loss` by default (CRITICAL)
+- **File:** `package.json:10`
+- **Issue:** `prisma db push --accept-data-loss` will silently drop columns/tables/data whenever the schema diverges from the DB. A single careless `db:push` against a production database (or a developer running it against the wrong env) destroys user data with no prompt. This is the most dangerous script in the project.
+- **Severity:** Critical
+- **Fix:**
+```json
+"db:push": "prisma db push",
+"db:push:force": "prisma db push --accept-data-loss"
+```
+The safe `db:push` will still prompt interactively when data loss is possible. Reserve `db:push:force` for local dev only and document it as dangerous. For production schema changes, use `prisma migrate deploy` with reviewed migration files (currently absent — see Finding 4.1).
+
+#### Finding 2.2 — Missing essential scripts
+- **File:** `package.json:5-14`
+- **Issue:** No `typecheck` (`tsc --noEmit`), no `format`/`prettier`, no `prepare`/husky, no `db:seed` script (seed scripts exist in `prisma/` but aren't wired), no `db:studio`. The `dev` script pipes through `tee dev.log` which persists logs to disk (could leak session data in dev).
+- **Severity:** Medium
+- **Fix:** Add:
+```json
+"typecheck": "tsc --noEmit",
+"db:seed": "bun prisma/seed.ts",
+"db:studio": "prisma studio",
+"format": "prettier --write ."
+```
+Replace `tee dev.log` with `tee dev.log` only if dev logging is intentional; otherwise drop it.
+
+#### Finding 2.3 — Package version not aligned with project maturity
+- **File:** `package.json:2`
+- **Issue:** `"version": "0.2.1"` for a Phase-15-complete app is misleading. Pre-1.0 implies pre-release instability. Should be at least `1.0.0` (or `0.15.0` to mirror phase count).
+- **Severity:** Low
+- **Fix:** Bump to `"version": "1.0.0"` once audit findings are resolved.
+
+#### Finding 2.4 — Unused / suspicious dependencies
+- **File:** `package.json:15-82`
+- **Issue:** `next-auth` (4.24.11) is installed but the app rolls its own scrypt+cookie session (`src/lib/auth.ts`, `src/lib/session.ts`) — `next-auth` is dead weight and a supply-chain liability. Same for `@mdxeditor/editor`, `@reactuses/core`, `react-syntax-highlighter`, `react-markdown` — none appear to be imported in `src/`. `next-intl` is installed but the app hand-rolls Bengali strings instead of using i18n. `bun-types` is in devDeps but the project uses Next.js (Node runtime) — type confusion.
+- **Severity:** Medium
+- **Fix:** Run `depcheck` and remove unused packages. Decide between `next-auth` vs. custom auth (recommend `next-auth` or `lucia` for production). Remove `bun-types` if not using Bun runtime.
+
+#### Finding 2.5 — Major-version drift risk on Next.js 16 + React 19
+- **File:** `package.json:60,65,67`
+- **Issue:** `next: ^16.1.1` with `react: ^19.0.0` — caret ranges allow minor bumps. Next 16 is recent; ecosystem plugins (Radix, Recharts) may lag. No lockfile audit step in CI.
+- **Severity:** Low
+- **Fix:** Pin exact versions for production (`"next": "16.1.1"`) and run `npm audit` / `bun audit` in CI.
+
+---
+
+### 3. `tsconfig.json`
+
+#### Finding 3.1 — Missing `noUncheckedIndexedAccess`
+- **File:** `tsconfig.json`
+- **Issue:** Without `noUncheckedIndexedAccess`, code like `pool[dayOfYear % pool.length].id` (`src/app/api/vocabulary/word-of-day/route.ts:28`) compiles as if the array access always returns `T`, but at runtime it can be `undefined` (empty pool). This is a runtime crash waiting to happen and there are several such accesses across the API routes (e.g., `lessonsInUnit[idx + 1].id` in `lessons/complete`).
+- **Severity:** High
+- **Fix:** Add `"noUncheckedIndexedAccess": true` to `compilerOptions`. Then fix the ~5-10 resulting type errors with explicit `?.` / null checks.
+
+#### Finding 3.2 — `noImplicitAny: false` contradicts `strict: true`
+- **File:** `tsconfig.json:13`
+- **Issue:** `strict: true` enables `noImplicitAny`, but it's then explicitly turned back off. This means function parameters, destructured variables, and catch clauses silently allow `any`. Combined with `ignoreBuildErrors: true` in `next.config.ts`, the project effectively has no type enforcement for untyped code paths.
+- **Severity:** Critical
+- **Fix:** Remove `"noImplicitAny": false` (or set to `true`). Fix the resulting errors with explicit types.
+
+#### Finding 3.3 — Missing strict compiler options
+- **File:** `tsconfig.json`
+- **Issue:** Several recommended strict options are missing:
+  - `exactOptionalPropertyTypes` (catches `undefined` vs. omitted distinction)
+  - `noFallthroughCasesInSwitch`
+  - `noImplicitReturns`
+  - `noPropertyAccessFromIndexSignature`
+  - `noUnusedLocals` / `noUnusedParameters` (would catch dead imports like `verifyPassword` in `signup/route.ts`)
+  - `forceConsistentCasingInFileNames` (default true in modern TS but should be explicit)
+  - `allowUnreachableCode: false`
+  - `allowUnusedLabels: false`
+- **Severity:** Medium
+- **Fix:** Add the above to `compilerOptions`.
+
+#### Finding 3.4 — `target: "ES2017"` is overly conservative
+- **File:** `tsconfig.json:3`
+- **Issue:** Next.js 16 targets modern browsers; ES2017 prevents down-leveling issues but blocks newer syntax features. Should be ES2022 or higher for top-level await, error cause, etc.
+- **Severity:** Low
+- **Fix:** Set `"target": "ES2022"`.
+
+#### Finding 3.5 — `allowJs: true` weakens type coverage
+- **File:** `tsconfig.json:9`
+- **Issue:** Allowing JS files bypasses TypeScript checking for any `.js` file in the project (e.g., `public/sw.js` is JS but ignored by Next; still, any future JS file would slip through).
+- **Severity:** Low
+- **Fix:** Set `"allowJs": false` unless there's a specific need.
+
+---
+
+### 4. `prisma/schema.prisma`
+
+#### Finding 4.1 — No migration files; schema drift managed via `db push`
+- **File:** `prisma/schema.prisma` + `package.json:10`
+- **Issue:** There is no `prisma/migrations/` directory. All schema changes are applied via `prisma db push`, which is explicitly recommended against by Prisma for production. Schema history is lost, rollback is impossible, and the audit trail for DB changes is gone.
+- **Severity:** High
+- **Fix:** Run `prisma migrate dev --name init --create-only` to baseline, then use `prisma migrate deploy` in production. Stop using `db:push` against any non-local environment.
+
+#### Finding 4.2 — Missing indexes on frequently-queried fields
+- **File:** `prisma/schema.prisma`
+- **Issue:** The following fields are filtered on in API routes but have no index:
+  - `User.role` — filtered in `friends/suggestions` (`role: "user"`) and admin user list. **High volume.**
+  - `User.league` — filtered in `leaderboard/route.ts` and `admin/league-reset`. **High volume.**
+  - `User.lastActiveDate` — filtered in `admin/stats` ("active today") and `admin/analytics` (DAU). **High volume.**
+  - `Vocabulary.category` — filtered in `vocabulary/route.ts` (mode=all/browse), admin vocabulary list. **Medium volume.**
+  - `Vocabulary.difficulty` — filtered in `word-of-day` (`difficulty: { lte: 3 }`).
+  - `UserProgress.lessonId` — filtered in `admin/analytics` (`lessonId: { in: [...] }`). Only the composite unique `@@unique([userId, lessonId])` exists, which on SQLite yields a B-tree usable for `userId` prefix but NOT for `lessonId` alone.
+  - `UserProgress.status` — filtered across many routes (`status: "completed"`).
+  - `UserProgress.completedAt` — filtered in `admin/analytics`, `admin/stats`.
+  - `LeaderboardEntry.league` — filtered in `leaderboard/route.ts` and `admin/league-reset`. **Critical for leaderboard performance.**
+  - `LeaderboardEntry.weeklyXp` — `orderBy` in leaderboard.
+  - `Follow.createdAt` — `orderBy` in `friends/route.ts`.
+- **Severity:** High
+- **Fix:** Add the following indexes to the schema:
+```prisma
+model User {
+  // ...
+  @@index([role])
+  @@index([league])
+  @@index([lastActiveDate])
+}
+
+model Vocabulary {
+  // ...
+  @@index([category])
+  @@index([difficulty])
+}
+
+model UserProgress {
+  // ...
+  @@index([lessonId])
+  @@index([status])
+  @@index([completedAt])
+  @@index([userId, status])
+}
+
+model LeaderboardEntry {
+  // ...
+  @@index([league, weeklyXp])
+}
+
+model Follow {
+  // ...
+  @@index([createdAt])
+}
+```
+
+#### Finding 4.3 — `Lesson.exercisesJson` and `Achievement.requirement` are JSON-in-String blobs
+- **File:** `prisma/schema.prisma:104, 182`
+- **Issue:** Storing JSON as a `String` field means every read requires `JSON.parse` (which can throw — see `lessons/[id]/route.ts:30`, `admin/lessons/route.ts:64`, `admin/lessons/[id]/route.ts:31`) and every write requires `JSON.stringify`. There is no schema validation at the DB level, no type safety, and corrupt JSON will crash the API. Prisma supports `Json` type natively on SQLite.
+- **Severity:** High
+- **Fix:** Change `exercisesJson String` → `exercises Json` and `requirement String` → `requirement Json`. Update the API routes to remove `JSON.parse`/`JSON.stringify` calls. Add a Zod schema for `Exercise[]` and `Requirement` to validate on write.
+
+#### Finding 4.4 — `User.league` and `User.role` are free-form strings
+- **File:** `prisma/schema.prisma:21, 33`
+- **Issue:** `role` and `league` are `String` with no enum constraint. Typos like `"Admi"` or `"bronze"` would silently corrupt data. The `league-reset` route's `LEAGUE_ORDER` array and the `admin/users` route's `z.enum(["user","admin"])` are the only validation layers — but nothing prevents direct DB writes (seed scripts, future admin tools) from inserting bad values.
+- **Severity:** Medium
+- **Fix:** Use a Prisma `enum` (supported on SQLite as of Prisma 6). Failing that, add a CHECK constraint via a raw migration.
+
+#### Finding 4.5 — `User.lastActiveDate` stored as `String?` (YYYY-MM-DD), not `DateTime`
+- **File:** `prisma/schema.prisma:32`
+- **Issue:** Storing dates as strings prevents using Prisma's native date operators (`gt`, `lt`, date arithmetic) and forces `.toISOString().slice(0, 10)` gymnastics in every route. It also breaks timezone safety — server-local date vs. UTC date diverge.
+- **Severity:** Medium
+- **Fix:** Change to `lastActiveDate DateTime?`. Update all comparison sites to use `new Date()` / date-only comparisons via `startOfDay` helpers.
+
+#### Finding 4.6 — Cascade deletes may be too aggressive on `Vocabulary`
+- **File:** `prisma/schema.prisma:136`
+- **Issue:** `UserVocabulary.vocabulary` has `onDelete: Cascade`, meaning if an admin deletes a `Vocabulary` word, every user's SRS review of that word is silently destroyed. For a learning app where users have invested in review state, this is data loss. Should be `onDelete: Restrict` (force admin to reassign or explicitly confirm).
+- **Severity:** Medium
+- **Fix:** Change to `onDelete: Restrict` on `UserVocabulary.vocabulary`. Admin route should then check for existing reviews before delete and either block or soft-delete.
+
+#### Finding 4.7 — `User.xp` field is redundant with `User.totalXp` + `User.level`
+- **File:** `prisma/schema.prisma:28, 29, 30`
+- **Issue:** `xp` is incremented alongside `totalXp` in every rewards path, but `level` is recomputed from `totalXp`. So `xp` appears to be "XP since last level-up" but is never reset or read for leveling. It's dead data, increasing write load and confusion.
+- **Severity:** Low
+- **Fix:** Remove the `xp` field (after confirming no UI reads it), or actually use it for "XP since last level" by resetting on level-up.
+
+#### Finding 4.8 — `LeaderboardEntry.league` duplicates `User.league`
+- **File:** `prisma/schema.prisma:204, 33`
+- **Issue:** Two sources of truth for a user's league. The `league-reset` route updates both (`db.leaderboardEntry.update` + `db.user.update`), but if any path updates one without the other, they drift. Already a manual sync issue.
+- **Severity:** Medium
+- **Fix:** Drop `league` from `LeaderboardEntry` and join to `User.league` in queries, OR drop `User.league` and read from `LeaderboardEntry`. Single source of truth.
+
+#### Finding 4.9 — Unused field `Vocabulary.audioUrl`
+- **File:** `prisma/schema.prisma:122`
+- **Issue:** `audioUrl` is declared but never populated by seed/expand scripts and never read by the API (TTS is used instead). Dead schema field.
+- **Severity:** Low
+- **Fix:** Remove the field or wire up real audio URLs.
+
+---
+
+### 5. `eslint.config.mjs`
+
+#### Finding 5.1 — Almost every useful rule is disabled (CRITICAL)
+- **File:** `eslint.config.mjs:9-45`
+- **Issue:** 18 rules are turned off, including:
+  - `@typescript-eslint/no-explicit-any` — allows `any` everywhere
+  - `@typescript-eslint/no-unused-vars` — dead imports/variables accumulate (this is how `verifyPassword` got imported unused in `signup/route.ts`)
+  - `@typescript-eslint/no-non-null-assertion` — allows `foo!` which can crash at runtime
+  - `@typescript-eslint/ban-ts-comment` — allows `@ts-ignore` everywhere
+  - `react-hooks/exhaustive-deps` — allows stale-closure bugs in effects (likely already present given Strict Mode is off)
+  - `prefer-const` — allows `let` for never-reassigned vars
+  - `no-console` — allows console.log in production (logs may leak PII)
+  - `no-debugger` — allows `debugger` statements in production code
+  - `no-unreachable` — allows dead code after `return`
+  - `no-fallthrough` — allows switch case fallthrough bugs
+  - `no-irregular-whitespace` — allows invisible Unicode characters (e.g., zero-width spaces) that break rendering
+  - `no-mixed-spaces-and-tabs` — allows inconsistent indentation
+  - `no-redeclare`, `no-undef`, `no-useless-escape` — all standard safety nets off
+
+  The "lint clean (0 errors, 0 warnings)" claim in the worklog is meaningless because every meaningful rule is disabled — the linter is effectively a no-op.
+- **Severity:** Critical
+- **Fix:** Re-enable ALL of the above as `"warn"` first (to triage), then `"error"` after cleanup. The config should be:
+```js
+{
+  rules: {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    "@typescript-eslint/no-non-null-assertion": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "prefer-const": "error",
+    "no-console": ["warn", { allow: ["warn", "error"] }],
+    "no-debugger": "error",
+    "no-unreachable": "error",
+    "no-fallthrough": "error",
+    "no-irregular-whitespace": "error",
+    "no-mixed-spaces-and-tabs": "error",
+    "no-redeclare": "error",
+    "no-undef": "error",
+    "no-useless-escape": "warn",
+    // The following were off but should remain off (legitimate use cases):
+    // "react/no-unescaped-entities" (Bengali/Arabic content)
+    // "@next/next/no-img-element" (avatar images)
+  },
+}
+```
+
+#### Finding 5.2 — Missing security-focused ESLint plugin
+- **File:** `eslint.config.mjs`
+- **Issue:** No `eslint-plugin-security`, no `eslint-plugin-react-hooks` (beyond the rules already in `next`), no `eslint-plugin-import` (would catch the unused `verifyPassword` import).
+- **Severity:** Medium
+- **Fix:** Add `eslint-plugin-security` and `eslint-plugin-import`. Enable `import/no-unused-modules`, `import/no-cycle`, `security/detect-object-injection`.
+
+#### Finding 5.3 — Incomplete ignores
+- **File:** `eslint.config.mjs:47`
+- **Issue:** `ignores` doesn't list `tool-results/`, `download/`, `tests/`, `examples/` (only `examples/**` is ignored). Generated screenshot/QA files in `download/` and `tool-results/` will be linted.
+- **Severity:** Low
+- **Fix:** Add `"tool-results/**"`, `"download/**"`, `"tests/**"` to `ignores`.
+
+---
+
+### 6. `.env`
+
+#### Finding 6.1 — Single env var; no secrets, but no `.env.example` either
+- **File:** `.env`
+- **Issue:** Only `DATABASE_URL=file:/home/z/my-project/db/custom.db` is set. No hardcoded secrets (good). But:
+  - No `.env.example` documenting required vars for new developers.
+  - The path is absolute (`/home/z/my-project/...`) — moving the project breaks it. Should be relative (`file:./db/custom.db`).
+  - No `DATABASE_URL` for production (Postgres) documented.
+  - The z-ai-web-dev-sdk doesn't appear to need an API key env var (likely uses ambient creds), but this should be documented.
+- **Severity:** Low
+- **Fix:** Create `.env.example`:
+```bash
+# Database (use postgresql:// in production)
+DATABASE_URL="file:./db/custom.db"
+
+# Node environment (set by host, but document expected values)
+# NODE_ENV=production|development
+
+# If z-ai-web-dev-sdk requires creds in prod, document them here
+```
+Change `.env` to use a relative path.
+
+#### Finding 6.2 — `.env` is likely committed to git
+- **File:** `.env`
+- **Issue:** The `.env` file exists in the project root. If it's tracked in git (the worklog mentions GitHub pushes), any future addition of secrets would be leaked. No `.gitignore` review performed but worth flagging.
+- **Severity:** Medium (pending verification)
+- **Fix:** Ensure `.env` is in `.gitignore`. Keep only `.env.example` in git. Add a pre-commit hook that blocks commits containing secret-like strings.
+
+---
+
+### 7. `src/lib/` Architecture
+
+#### Finding 7.1 — No error boundary anywhere in the app
+- **File:** `src/app/` (no `error.tsx`, `global-error.tsx`, or `not-found.tsx` found)
+- **Issue:** Next.js App Router supports `error.tsx` for route-segment error boundaries and `global-error.tsx` for root errors. Neither exists. Any uncaught exception in a Server Component or route handler will show the default Next.js error page (ugly, leaks stack in dev). For a consumer-facing PWA, this is a poor UX. Combined with `apiHandler` returning raw `err.message` to clients (Finding 8.4), errors leak internals.
+- **Severity:** High
+- **Fix:** Add `src/app/error.tsx` (route-level boundary with reset button), `src/app/global-error.tsx` (root boundary), and `src/app/not-found.tsx` (404 page). All styled with the existing emerald/gold design system.
+
+#### Finding 7.2 — Dead code: `syncGameFromUser` in `auth-store.ts`
+- **File:** `src/lib/stores/auth-store.ts:60-64`
+- **Issue:** `export function syncGameFromUser(user: SessionUser)` is exported but never imported anywhere. The body is `void user;` — a no-op stub. Dead code that confuses readers.
+- **Severity:** Low
+- **Fix:** Delete the function. If cross-store hydration is needed, do it explicitly in `page.tsx` (already done via `hydrateFromServer`).
+
+#### Finding 7.3 — Dead import: `verifyPassword` in `signup/route.ts`
+- **File:** `src/app/api/auth/signup/route.ts:3`
+- **Issue:** `verifyPassword` is imported but never used. Would be caught by `@typescript-eslint/no-unused-vars` if the rule were on.
+- **Severity:** Low
+- **Fix:** Remove `verifyPassword` from the import.
+
+#### Finding 7.4 — Dead import: `fail` in `admin-guard.ts`
+- **File:** `src/lib/api/admin-guard.ts:2`
+- **Issue:** `import { fail } from "@/lib/api/responses"` — `fail` is imported but the guard uses `NextResponse.json` directly instead. Inconsistent and dead.
+- **Severity:** Low
+- **Fix:** Remove the `fail` import and use `fail("Forbidden", 403)` for consistency, OR remove the import and keep `NextResponse.json`.
+
+#### Finding 7.5 — `db.ts` enables query logging unconditionally in dev
+- **File:** `src/lib/db.ts:10`
+- **Issue:** `log: ['query']` is set regardless of `NODE_ENV`. In dev this floods the console (and `dev.log` via the `tee` in the `dev` script). Should be conditional.
+- **Severity:** Low
+- **Fix:**
+```ts
+new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'],
+})
+```
+
+#### Finding 7.6 — Session token is base64-encoded, not signed
+- **File:** `src/lib/auth.ts:40-54`
+- **Issue:** `createSessionToken` does `base64url(userId.timestamp.random)` — there is no signature/HMAC. Anyone can forge a valid-looking session token by base64-encoding an arbitrary userId. The only protection is that `getSessionUser` then looks the user up by ID — so an attacker who knows a userId can forge a session. User IDs are `cuid()` (unguessable), but this is still security-by-obscurity. The code comment even admits "For production you'd use NextAuth / JWT lib".
+- **Severity:** High
+- **Fix:** Either (a) adopt `next-auth` (already in dependencies) with a proper JWT strategy and HMAC signing, or (b) add an HMAC signature to the token:
+```ts
+import { createHmac, timingSafeEqual } from "crypto";
+const SECRET = process.env.SESSION_SECRET!; // require in prod
+export function createSessionToken(userId: string): string {
+  const payload = `${userId}.${Date.now()}`;
+  const sig = createHmac("sha256", SECRET).update(payload).digest("hex");
+  return Buffer.from(`${payload}.${sig}`).toString("base64url");
+}
+```
+And verify the signature in `parseSessionToken`.
+
+#### Finding 7.7 — `apiHandler` leaks internal error messages to clients
+- **File:** `src/lib/api/responses.ts:23-27`
+- **Issue:** `const message = err instanceof Error ? err.message : "Internal server error"; return fail(message, 500);` — raw error messages (including Prisma errors with table/column names, stack traces in some cases) are returned to the client. Information disclosure.
+- **Severity:** High
+- **Fix:**
+```ts
+catch (err) {
+  console.error("[api] unhandled error:", err);
+  const isDev = process.env.NODE_ENV === "development";
+  const message = isDev && err instanceof Error
+    ? err.message
+    : "Internal server error";
+  return fail(message, 500, isDev ? { stack: err instanceof Error ? err.stack : undefined } : undefined);
+}
+```
+
+#### Finding 7.8 — No circular imports detected (✓)
+- **File:** `src/lib/`
+- **Issue:** None. Import graph is clean: `auth-store → api/client → types`; `session → db + auth`; `achievements → db`; `admin-guard → session + responses + types`. No cycles.
+- **Severity:** N/A
+- **Fix:** None needed.
+
+---
+
+### 8. `src/app/api/` Routes
+
+#### Finding 8.1 — Zero rate limiting on ANY route (CRITICAL)
+- **File:** All routes under `src/app/api/`
+- **Issue:** No middleware, no in-memory rate limiter, no Redis-backed limiter. Critical exposure surfaces:
+  - `POST /api/auth/login` — unlimited password guessing (no brute-force protection). Demo creds `demo1234` would be crackable in minutes.
+  - `POST /api/auth/signup` — unlimited account creation (DB flooding).
+  - `POST /api/ai/tutor` — unlimited AI calls, each costing real money via the z-ai-web-dev-sdk. An attacker could rack up a massive bill.
+  - `POST /api/lessons/complete` — a user could replay-completed lessons to farm XP/gems (mitigated only by the `isImprovement` check).
+  - `POST /api/vocabulary/review` — same farming concern; awards 2 XP per review.
+- **Severity:** Critical
+- **Fix:** Add a `middleware.ts` at the project root (or `src/middleware.ts`) implementing IP-based rate limiting using an in-memory Map (dev) or Upstash Redis (prod). Example sketch:
+```ts
+// src/middleware.ts
+import { NextResponse } from "next/server";
+const hits = new Map<string, { count: number; reset: number }>();
+const LIMITS = {
+  "/api/auth/login": { window: 60_000, max: 10 },
+  "/api/auth/signup": { window: 60_000, max: 5 },
+  "/api/ai/tutor": { window: 60_000, max: 10 },
+  // default
+  "_default": { window: 60_000, max: 60 },
+};
+export function middleware(req: Request) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
+  const path = new URL(req.url).pathname;
+  const limit = LIMITS[path as keyof typeof LIMITS] ?? LIMITS._default;
+  const now = Date.now();
+  const rec = hits.get(ip) ?? { count: 0, reset: now + limit.window };
+  if (now > rec.reset) { rec.count = 0; rec.reset = now + limit.window; }
+  rec.count++;
+  hits.set(ip, rec);
+  if (rec.count > limit.max) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": String(Math.ceil((rec.reset - now) / 1000)) } });
+  }
+  return NextResponse.next();
+}
+export const config = { matcher: "/api/:path*" };
+```
+For production, use `@upstash/ratelimit` + `@upstash/redis`.
+
+#### Finding 8.2 — No CSRF protection on state-changing routes
+- **File:** All `POST/PUT/DELETE` routes
+- **Issue:** The session cookie is `sameSite: "lax"` (in `session.ts:21`), which blocks cross-site POST from forms but NOT cross-site `fetch` with `credentials: "include"` from a subdomain. Combined with no CSRF token, the app is vulnerable to CSRF from any subdomain of `arabicsikhi.com` (or any site that can set a cookie on a shared parent domain). The `api/client.ts` sends `Content-Type: application/json` which provides a partial defense (browsers won't send `application/json` cross-site without preflight), but this is defense-in-depth, not a guarantee.
+- **Severity:** High
+- **Fix:** Either (a) change `sameSite` to `"strict"` (breaks OAuth deep links but this app has none), or (b) implement double-submit CSRF tokens: server sets a non-httpOnly `csrf_token` cookie, client reads it and sends it as `X-CSRF-Token` header, server compares. Reject any state-changing request missing a matching token.
+
+#### Finding 8.3 — `/api/ai/tutor` has NO authentication (CRITICAL)
+- **File:** `src/app/api/ai/tutor/route.ts:33-58`
+- **Issue:** Unlike every other mutating API, the AI tutor endpoint never calls `getSessionUser()`. Any anonymous visitor can call it unlimited times, each costing real LLM API credits. This is a billing vulnerability — a single attacker script could run up thousands of dollars in AI costs.
+- **Severity:** Critical
+- **Fix:** Add `const session = await getSessionUser(); if (!session) return fail("Not authenticated", 401);` at the top of the handler. Combine with Finding 8.1's rate limit.
+
+#### Finding 8.4 — Inconsistent auth checks across public-ish routes
+- **File:** Multiple routes
+- **Issue:** The following routes have NO auth check, returning user-specific data when logged in and partial data when not:
+  - `GET /api/courses` — returns full course tree; uses `__guest__` fallback userId. OK by design.
+  - `GET /api/leaderboard` — returns leaderboard with `isMe` flag. Anonymous users get `myRank: null`. OK.
+  - `GET /api/lessons/[id]` — returns full lesson exercises + user progress. **Anonymous users can read all lesson content.** Likely intentional for marketing, but should be explicit.
+  - `GET /api/lessons/search` — same as above.
+  - `GET /api/achievements` — returns all achievement definitions. OK.
+  - `POST /api/lessons/complete` — has auth check. ✓
+  - `POST /api/vocabulary/review` — has auth check. ✓
+
+  The inconsistency is the risk: a future route might be added without auth by accident. There's no convention or helper enforcing it.
+- **Severity:** Medium
+- **Fix:** Add a `requireUser()` helper alongside `requireAdmin()` that returns 401 if unauthenticated. Use it consistently. Add a unit test that asserts every `POST/PUT/DELETE` route in `src/app/api/` calls either `requireUser()` or `requireAdmin()`.
+
+#### Finding 8.5 — `lessons/complete` and `lessons/[id]/complete` are duplicate routes
+- **File:** `src/app/api/lessons/complete/route.ts` AND `src/app/api/lessons/[id]/complete/route.ts`
+- **Issue:** Both files contain identical ~150-line POST handlers (the worklog mentions the static route was created to fix a 405 bug, but the dynamic `[id]/complete` route was never deleted). Two copies = double maintenance; if one is updated and the other isn't, behavior diverges. Worse: the dynamic route's handler ignores the `[id]` param entirely (it reads `lessonId` from the body), so it's functionally dead but still callable.
+- **Severity:** Medium
+- **Fix:** Delete `src/app/api/lessons/[id]/complete/route.ts` entirely. Keep only the static `src/app/api/lessons/complete/route.ts`.
+
+#### Finding 8.6 — Non-transactional multi-write operations
+- **File:** `src/app/api/lessons/complete/route.ts`, `src/app/api/admin/league-reset/route.ts`, `src/app/api/auth/signup/route.ts`, `src/app/api/user/streak-check/route.ts`
+- **Issue:** Multiple `await db.X.update(...)` calls run in sequence without a `db.$transaction()`. If any one fails mid-way, the DB is left in an inconsistent state. Examples:
+  - `lessons/complete`: updates `user.gems/xp/totalXp`, then `leaderboardEntry`, then `user.level`, then `user.streak/lastActiveDate`, then `userProgress` for next lesson. If step 3 fails, the user got XP but no streak update.
+  - `signup`: creates `user`, then `leaderboardEntry`, then `userProgress`. If step 2 fails, the user exists without a leaderboard entry (the `league-reset` route's `update` would later crash on the missing entry).
+  - `league-reset`: updates `leaderboardEntry`, then `user.league` — if the second fails, the two are out of sync.
+- **Severity:** High
+- **Fix:** Wrap each multi-write block in `await db.$transaction(async (tx) => { ... })` and use `tx.` instead of `db.` inside.
+
+#### Finding 8.7 — `admin/league-reset` has N+1 query pattern inside a loop
+- **File:** `src/app/api/admin/league-reset/route.ts:23-95`
+- **Issue:** For each of 6 leagues, the route fetches all entries, then loops through top-3 and bottom-3 calling `db.leaderboardEntry.update` + `db.user.update` sequentially. With 100 users per league, this is 6 leagues × ~6 updates × 2 tables = ~72 sequential DB writes. Slow and not transactional.
+- **Severity:** Medium
+- **Fix:** Build a list of `{ userId, newLeague }` updates in memory, then issue a single `db.$transaction([update1, update2, ...])` batch.
+
+#### Finding 8.8 — `admin/lessons` accepts `z.any()` for exercises
+- **File:** `src/app/api/admin/lessons/route.ts:22` and `admin/lessons/[id]/route.ts:14`
+- **Issue:** `exercises: z.array(z.any()).default([])` — admin can store literally any JSON shape as "exercises". A typo or malicious admin could inject `{"$gt": ""}` (NoSQL-style) or simply malformed exercises that crash the lesson player. The well-typed `Exercise` union exists in `src/lib/types/index.ts` but is not used for validation.
+- **Severity:** High
+- **Fix:** Define a `z.discriminatedUnion("type", [...])` Zod schema matching the `Exercise` type in `src/lib/types/index.ts`. Use it in both create and update routes.
+
+#### Finding 8.9 — `vocabulary/review` awards XP without verifying the user actually reviewed
+- **File:** `src/app/api/vocabulary/review/route.ts:13-81`
+- **Issue:** The endpoint accepts `vocabularyId` + `quality` and awards 2 XP for `quality >= 3`. There is no server-side check that the card was actually due, that the user interacted with it, or any anti-replay token. A user (or bot) can call `POST /api/vocabulary/review { vocabularyId, quality: 5 }` in a loop to farm unlimited XP. The `quality` is client-supplied — the user can always report 5.
+- **Severity:** High
+- **Fix:** Server-side enforcement: only award XP if the card was actually `dueDate <= now` (check before the upsert), and cap reviews-per-day per user (e.g., max 50 XP from reviews/day). Consider requiring a server-issued review-token that's consumed on submit.
+
+#### Finding 8.10 — `lessons/complete` trusts client-supplied `score`/`stars`/`correctCount`
+- **File:** `src/app/api/lessons/complete/route.ts:7-13, 29-31`
+- **Issue:** The client sends `score`, `stars`, `correctCount`, `totalCount` and the server trusts them to compute `xpGained = round(xpReward * (0.5 + accuracy * 0.5))`. A user can simply POST `{ lessonId, score: 100, stars: 3, correctCount: 10, totalCount: 10 }` to maximize XP and gems every time. Combined with the practice-mode (re-completion allowed), this is trivially farmable.
+- **Severity:** High
+- **Fix:** Either (a) server-side exercise verification (the client submits its answers, the server re-grades against the stored exercise answers), or (b) accept that this is a learning app where XP-farming is low-stakes and add only a coarse sanity check (e.g., `score` must be `<= 100`, `correctCount <= totalCount`, and rate-limit completions per lesson per day).
+
+#### Finding 8.11 — `user/purchase` `heart-max` cap is wrong
+- **File:** `src/app/api/user/purchase/route.ts:51-57`
+- **Issue:** The check is `if (user.hearts >= 7) return fail("সর্বোচ্চ হার্ট সীমায় পৌঁছেছেন", 400);` — but this checks *current* hearts, not *max* hearts. If a user has 3 hearts (lost 2), they can buy `heart-max` to go to 4, even if they already have `maxHearts = 7`. The schema has no `maxHearts` field (the code comment admits this), so the cap is unenforceable.
+- **Severity:** Medium
+- **Fix:** Add a `maxHearts Int @default(5)` field to the `User` model. Update the purchase check to `if (user.maxHearts >= 7) return fail(...)`, and on purchase increment `maxHearts` (not `hearts`).
+
+#### Finding 8.12 — `signup` race condition on email uniqueness
+- **File:** `src/app/api/auth/signup/route.ts:21-30`
+- **Issue:** The route does `findUnique({ where: { email } })` then later `user.create()`. Between the two calls, a concurrent request with the same email can win, causing the second `create` to throw a Prisma unique-constraint error (P2002) which surfaces as a 500 via `apiHandler`. The user sees "Internal server error" instead of "Email already registered".
+- **Severity:** Medium
+- **Fix:** Catch the P2002 Prisma error specifically and return 409. Or rely solely on the DB constraint and remove the pre-check:
+```ts
+try {
+  const user = await db.user.create({ data: { ... } });
+  // ...
+} catch (e) {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    return fail("Email already registered", 409);
+  }
+  throw e;
+}
+```
+
+#### Finding 8.13 — `friends/suggestions` excludes admins but `friends/toggle` doesn't
+- **File:** `src/app/api/friends/suggestions/route.ts:27` vs `friends/toggle/route.ts`
+- **Issue:** Suggestions filter `role: "user"` (admins not suggested). But `toggle` doesn't check the target's role — a user can follow an admin by directly POSTing their userId (e.g., discovered via leaderboard or brute-forcing cuids). Likely benign (admins are public figures) but inconsistent.
+- **Severity:** Low
+- **Fix:** Either explicitly allow following admins (then remove the suggestion filter), or block following admins in `toggle` too.
+
+#### Finding 8.14 — No input size limits on AI tutor message history
+- **File:** `src/app/api/ai/tutor/route.ts:6-11`
+- **Issue:** `messages: z.array(z.object({ role, content: z.string() }))` — no `.max()` on array length or string length. A client can POST 1000 messages of 100KB each, exhausting memory and token limits. The z-ai-web-dev-sdk will likely reject, but only after billing for prompt processing.
+- **Severity:** Medium
+- **Fix:**
+```ts
+messages: z.array(z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().max(4000),
+})).max(20),
+```
+
+#### Finding 8.15 — `vocabulary/word-of-day` crashes on empty pool
+- **File:** `src/app/api/vocabulary/word-of-day/route.ts:28`
+- **Issue:** `pool[dayOfYear % pool.length].id` — if `pool` is empty (e.g., a fresh DB before seed), this is `undefined.id` → TypeError → 500. With `noUncheckedIndexedAccess` enabled (Finding 3.1), this would be a compile error.
+- **Severity:** Medium
+- **Fix:** Guard explicitly: `if (pool.length === 0) return fail("No vocabulary available", 404);` (the route already checks `totalWords === 0` but `easyWords` could be empty when `totalWords > 0` — the fallback `await db.vocabulary.findMany(...)` is fine, but the `pool[...]` access is still unguarded against a hypothetical empty pool).
+
+#### Finding 8.16 — `lessons/complete` recomputes level with inline math, duplicating `game-store.ts`
+- **File:** `src/app/api/lessons/complete/route.ts:88-95` vs `src/lib/stores/game-store.ts:55-75`
+- **Issue:** The server uses `Math.floor(50 * Math.pow(level, 1.4))` in a while-loop to compute the level — the same formula is in `xpForLevel()` and `levelFromXp()` in the client store. Two copies of the level curve. If one changes, the server and client disagree on the user's level.
+- **Severity:** Medium
+- **Fix:** Extract `levelFromXp` into a shared `src/lib/leveling.ts` (isomorphic, no `"use client"`), import from both `game-store.ts` and `lessons/complete/route.ts`.
+
+#### Finding 8.17 — `admin/analytics` fetches ALL users' `lastActiveDate` to compute DAU
+- **File:** `src/app/api/admin/analytics/route.ts:68-71`
+- **Issue:** `db.user.findMany({ where: { lastActiveDate: { not: null } }, select: { lastActiveDate: true } })` — fetches every user's lastActiveDate string into memory, then loops to build a per-day map. With 10k+ users, this is a 10k-row scan on every admin page load. Should be a `groupBy` query.
+- **Severity:** Medium
+- **Fix:** Use `db.user.groupBy({ by: ["lastActiveDate"], _count: true, where: { lastActiveDate: { gte: startDateStr } } })`. Requires `lastActiveDate` to be a DateTime (Finding 4.5) for clean comparison, or string-range filtering.
+
+---
+
+### Cross-Cutting Recommendations
+
+1. **Add `src/middleware.ts`** implementing: (a) rate limiting (Finding 8.1), (b) security headers as a fallback for routes not covered by `next.config.ts` `headers()`, (c) request logging.
+2. **Add `src/app/error.tsx` + `global-error.tsx` + `not-found.tsx`** (Finding 7.1).
+3. **Adopt `next-auth`** (already installed) OR sign the session token with HMAC (Finding 7.6). The current base64-only token is forgeable.
+4. **Establish a `db:seed` + `db:migrate` workflow** and deprecate `db:push` for any non-local environment (Findings 2.1, 4.1).
+5. **Run `tsc --noEmit` and `eslint .` with rules re-enabled**, then triage the resulting errors in a dedicated cleanup PR before any production deploy (Findings 1.1, 3.1, 3.2, 5.1).
+6. **Add CI** (GitHub Actions) running `typecheck`, `lint`, and `prisma migrate deploy --dry-run` on every PR. Block merges on failure.
+7. **Server-side exercise grading** (Findings 8.9, 8.10) — the entire gamification economy is client-trusted. Decide whether XP-farming is acceptable (low-stakes learning app) or not (competitive leaderboard). If not, invest in server-side grading.
+
+### Files Changed by This Audit
+None. This is a read-only audit per task instructions. All fixes above are recommendations for the orchestrator to apply.
+
+### Next Actions (ordered by priority)
+1. **Critical (block deploy):** Fix 1.1 (`ignoreBuildErrors`), 2.1 (`--accept-data-loss`), 3.2 (`noImplicitAny: false`), 5.1 (ESLint rules), 8.1 (rate limiting), 8.3 (AI tutor auth).
+2. **High (fix before public launch):** 1.2 (Strict Mode), 1.3 (security headers), 3.1 (`noUncheckedIndexedAccess`), 4.1 (migrations), 4.2 (indexes), 4.3 (JSON fields), 7.1 (error boundaries), 7.6 (signed sessions), 7.7 (error masking), 8.2 (CSRF), 8.6 (transactions), 8.8 (exercise validation), 8.9/8.10 (anti-farming).
+3. **Medium (next sprint):** Remaining 4.x, 8.x items.
+4. **Low (cleanup):** Dead code (7.2, 7.3, 7.4), unused deps (2.4), version bump (2.3), env example (6.1).
+
+
+---
+
+## Code Quality Audit Report (AUDIT-CODE-1)
+
+**Scope**: Full codebase review of `src/` for type safety, code smells, and bad practices in Next.js 16 + Prisma Arabic learning app.
+**Method**: ripgrep + manual file review + `tsc --noEmit` (44 confirmed TypeScript errors).
+**Auditor**: Strict Code Reviewer / Senior TypeScript Developer
+**Severity legend**: 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low
+
+### 0. Project Configuration Anti-Pattern (🔴 Critical — root cause)
+
+The project has effectively **disabled the entire TypeScript & React safety net** in two places:
+
+**`tsconfig.json:13`** — `"noImplicitAny": false` — allows implicit `any` everywhere without warning.
+
+**`eslint.config.mjs:9–45`** disables nearly every guardrail:
+```js
+"@typescript-eslint/no-explicit-any": "off",
+"@typescript-eslint/no-unused-vars": "off",
+"@typescript-eslint/no-non-null-assertion": "off",
+"@typescript-eslint/ban-ts-comment": "off",
+"react-hooks/exhaustive-deps": "off",
+"react-compiler/react-compiler": "off",
+"no-empty": "off",          // allows silent catch blocks
+"no-unreachable": "off",
+"no-fallthrough": "off",
+"no-undef": "off",
+"prefer-const": "off",
+```
+**Fix**: Restore at least `warn` level for all of these. Re-enable `noImplicitAny: true`. Fix the resulting lint errors as a dedicated cleanup phase. Every issue below was enabled by this config.
+
+---
+
+### 1. TypeScript `any` Usage
+
+| # | File:Line | Issue | Severity | Fix |
+|---|-----------|-------|----------|-----|
+| 1.1 | `src/components/app/vocabulary-screen.tsx:151` | `function FlipCard({ card, ... }: { card: any; ... })` — entire card object is `any`. All property accesses (`card.isNew`, `card.arabic`, `card.bangla`, `card.exampleArabic`, ...) are untyped. | 🔴 | Extract a `VocabCard` type (or reuse the inline shape already declared in `api.client.vocabulary.due`). Fix: `card: { id: string; arabic: string; transliteration: string; bangla: string; english: string; partOfSpeech?: string \| null; category?: string \| null; exampleArabic?: string \| null; exampleBangla?: string \| null; difficulty: number; isNew?: boolean; box?: number }` |
+| 1.2 | `src/app/api/admin/lessons/route.ts:22` | `exercises: z.array(z.any()).default([])` — accepts literally anything as exercises array. | 🟠 | Define `const exerciseSchema = z.discriminatedUnion("type", [...])` matching `Exercise` from `src/lib/types/index.ts` and validate on input. |
+| 1.3 | `src/app/api/admin/lessons/[id]/route.ts:14` | `exercises: z.array(z.any()).optional()` — same issue. | 🟠 | Same as 1.2. |
+| 1.4 | `src/lib/api/client.ts:14` | `(data as { error?: string }).error` — `data` from `res.json().catch(() => ({}))` is `any`. | 🟡 | Type the catch fallback explicitly: `const data: Record<string, unknown> = await res.json().catch(() => ({}));` then `const msg = typeof data.error === "string" ? data.error : ...`. |
+| 1.5 | `src/app/page.tsx:31` | `(data) => { if (data.freezeConsumed) {...} if (data.streakReset) {...} if (data.streak !== undefined && data.streak !== user.streak) ... }` — `data` is `any` from `r.json()`. | 🟠 | Add an explicit response type: `{ freezeConsumed?: boolean; streakReset?: boolean; streak?: number }`. |
+| 1.6 | `src/components/app/shop-screen.tsx:64,82` | `const data = await res.json(); if (!res.ok) throw new Error(data.error); ... data.streakFreezes` — `data` is `any`. | 🟠 | Add explicit types or refactor to use the `api` client (`api.user.purchase(...)`). |
+| 1.7 | `src/hooks/use-notifications.ts:24` | `return JSON.parse(stored);` — returns `any`. | 🟡 | Add a `zod` schema for `ReminderConfig` and parse, or type as `return JSON.parse(stored) as ReminderConfig;` (parse-and-validate is preferred). |
+| 1.8 | `src/lib/achievements.ts:75` | `req = JSON.parse(ach.requirement);` then `stats[req.type]` — `req` is `any`-ish (typed via cast). | 🟡 | Wrap with zod: `const parsed = requirementSchema.safeParse(JSON.parse(ach.requirement));` |
+| 1.9 | `src/app/api/vocabulary/route.ts:57-58` | `Number(url.searchParams.get("page") ?? "1")` — returns `NaN` for invalid input, not caught. | 🟠 | Use `z.coerce.number().int().min(1).default(1)` like admin routes do, or `Math.max(1, Number(...) || 1)`. |
+| 1.10 | All API routes (25+ files) | `req` is `unknown` (TS18046, 25 errors). Calling `req.url`, `req.json()` fails type check. | 🔴 | See Section 2.1 below. |
+
+**Other `unknown`/`Record<string, unknown>` gaps in `src/lib/api/client.ts`** (lines 69, 146, 151, 374, 378, 398, 410, 411, 415): all `progress`, `updated`, `userVocab`, `word`, `lesson` responses are typed as `unknown`. Fix: extract proper response types or import Prisma-generated types.
+
+---
+
+### 2. Type Safety Gaps
+
+#### 2.1 🔴 Critical: `apiHandler` generic signature breaks all route handlers
+
+**File**: `src/lib/api/responses.ts:17`
+```ts
+export function apiHandler<TArgs extends unknown[]>(
+  fn: (...args: TArgs) => Promise<Response>
+) {
+  return async (...args: TArgs): Promise<Response> => { ... }
+}
+```
+**Issue**: `TArgs extends unknown[]` means each argument is `unknown`. When Next.js calls the handler with `(req: Request, ctx: { params: Promise<...> })`, both get widened to `unknown`. The TS compiler errors (TS18046) on every `req.url` / `req.json()` access across **25+ route files**.
+
+**Fix**:
+```ts
+type RouteHandler<TCtx = unknown> = (
+  req: Request,
+  ctx: { params: TCtx }
+) => Promise<Response>;
+
+export function apiHandler<TParams = Record<string, string | string[]>>(
+  fn: RouteHandler<{ params: Promise<TParams> }>
+): RouteHandler<{ params: Promise<TParams> }> {
+  return async (req, ctx) => {
+    try { return await fn(req, ctx); }
+    catch (err) { ... }
+  };
+}
+```
+Then route files keep `apiHandler(async (req, { params }: { params: Promise<{ id: string }> }) => ...)` and `req` is properly typed.
+
+#### 2.2 🔴 Critical: Duplicate `SessionUser` type definitions
+
+Two different `SessionUser` types with the same name coexist:
+
+**`src/lib/session.ts:8-13`** (used by every API route):
+```ts
+export type SessionUser = { id: string; email: string; name: string; role: string; };
+```
+
+**`src/lib/types/index.ts:96-111`** (used by client):
+```ts
+export type SessionUser = { id; name; email; role; avatar?; gems; xp; totalXp; level; streak; lastActiveDate?; league; hearts; streakFreezes?; };
+```
+
+**Issue**: `src/lib/api/admin-guard.ts:17` returns `user: SessionUser` (full) but `session` is the minimal version → TS2740. Additionally, **`/api/auth/login` and `/api/auth/signup` return `user` objects missing `avatar`, `lastActiveDate`, `streakFreezes`** but the client-side `SessionUser` type asserts they exist (only `avatar`/`lastActiveDate`/`streakFreezes` are optional in the client type, but `gems`/`xp`/`totalXp`/`level`/`streak`/`league`/`hearts` are required). The login response omits all three optional fields AND `streakFreezes`. **Fix**: Delete `SessionUser` from `src/lib/session.ts`. Re-export from `src/lib/types/index.ts`. Update `getSessionUser()` to fetch all fields and return the full type. Update all routes that consume `session` to handle the wider type (no behavior change needed; just more fields available).
+
+#### 2.3 🔴 Critical: `theme-preview-modal.tsx` references `theme.cost` that doesn't exist
+
+`CustomTheme` in `src/lib/stores/theme-store.ts:8-24` has no `cost` field, but `theme-preview-modal.tsx` accesses `theme.cost` at lines 39, 49, 174, 178, 208 (5 TS2339 errors). At runtime `theme.cost === undefined`, so:
+- `theme.cost > 0` is always falsy → "purchase info" panel never shows
+- `<GemIcon/> {theme.cost}` renders `undefined`
+
+**Fix**: Add `cost: number` to `CustomTheme` interface and populate it in the `THEMES` record. Or move `cost` into a separate `Record<ThemeId, number>` constant imported from the shop screen.
+
+#### 2.4 🔴 Critical: `lesson-screen.tsx:852` setRewards type mismatch
+
+```ts
+const [rewards, setRewards] = useState<{ xp; gems; stars; nextLessonId: string | null } | null>(null);
+// ...
+const res = await api.lessons.complete({...});
+setRewards(res.rewards); // TS2345
+```
+`res.rewards` is typed `{ xp: number; gems: number; stars: number }` in `client.ts:70` (no `nextLessonId`). Either:
+- Move `nextLessonId` out of the rewards state (it's already on `res`), OR
+- Add `nextLessonId` to the `rewards` field type in `client.ts`.
+
+#### 2.5 🔴 Critical: `bottom-nav.tsx:3` imports non-exported `TabName`
+
+```ts
+// nav-store.ts:23
+type TabName = "home" | "vocabulary" | "leaderboard" | "profile"; // NOT exported
+// bottom-nav.tsx:3
+import { useNav, type TabName } from "@/lib/stores/nav-store"; // TS2459
+```
+**Fix**: Add `export` to `type TabName` in `nav-store.ts:23`.
+
+#### 2.6 🟠 High: `admin-lessons.tsx:76` Map constructor tuple inference
+
+```ts
+const courses = Array.from(new Map(units.map((u) => [u.course.id, u.course]).values()).values());
+```
+TypeScript infers `[u.course.id, u.course]` as `(string | AdminCourse)[]` (union array), not a 2-tuple. `new Map(...)` rejects it (TS2769). Consequently `courses` is `unknown[]` and lines 110-118 error (TS18046 on `c`).
+
+**Fix**:
+```ts
+const courses = Array.from(
+  new Map(units.map((u) => [u.course.id, u.course] as const)).values()
+);
+```
+
+#### 2.7 🟠 High: `JSON.parse(lesson.exercisesJson)` is untyped and unvalidated
+
+5 occurrences (`src/app/api/lessons/[id]/route.ts:30`, `src/app/api/admin/lessons/route.ts:64`, `src/app/api/admin/lessons/[id]/route.ts:31`, etc.) — every lesson exercises payload sent to the client is `any` after `JSON.parse`. The client asserts these are `Exercise[]` but the server never validates. Malformed or schema-drifted JSON will silently propagate.
+
+**Fix**: Define a `zod` exercise schema matching `Exercise` in `src/lib/types/index.ts` and `safeParse` after `JSON.parse`. Return 500 on parse failure (apiHandler will catch).
+
+#### 2.8 🟠 High: `lesson-screen.tsx:130` — `useGame.getState().hearts` in render
+
+```tsx
+<span className="text-sm tabular-nums">{useGame.getState().hearts}</span>
+```
+`getState()` reads current value but **doesn't subscribe** to updates — the heart count won't re-render when `loseHeart()` is called.
+
+**Fix**: Add `const { hearts } = useGame();` at the top of `LessonScreen` (or `useGame((s) => s.hearts)`).
+
+#### 2.9 🟡 Medium: `lib/types/index.ts` does not match Prisma schema
+
+- `CourseLesson.progress` is typed `LessonProgress[]` (array) but the API returns a single object (`LessonProgress | null`), and `LessonNode` accesses `lesson.progress?.[0]`. Should be `progress?: LessonProgress` (single).
+- `LessonProgress.status` allows `"locked" | "available" | "completed"` but the Prisma schema (`schema.prisma:159`) stores it as `String` — no DB-level constraint. Same for `Lesson.type` (allowed: standard/boss/review/treasure — string in DB).
+- `SessionUser.league` should be a union type `"Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond" | "Pearl"` rather than `string` to match `LEAGUES` constant.
+- `User.role` should be `"user" | "admin"` union, not `string`.
+
+#### 2.10 🟡 Medium: Non-null assertions (`!`)
+
+- `src/components/app/admin-analytics.tsx:367` — `Math.abs(delta!).toFixed(0)` — already checked via `hasDelta`, but assertion is fragile.
+- `src/components/app/lesson-screen.tsx:206` — `speak(ex.arabic!)` — `ex.arabic` is `string | undefined` (optional in `multiple-choice` exercise type). Should be `if (ex.arabic) speak(ex.arabic)` instead of asserting.
+- `src/app/api/vocabulary/categories/route.ts:38,39` — `learnedByCategory.get(c.category!) ?? 0` — already filtered by `.filter((c) => c.category)` but type not narrowed. Fix: `.filter((c): c is { category: string; _count: number } => Boolean(c.category))`.
+
+#### 2.11 🟡 Medium: `achievements.ts:80` dynamic key access
+
+```ts
+const currentValue = stats[req.type]; // stats: Record<Requirement["type"], number>
+```
+Works but loses type narrowing. Fix: switch statement:
+```ts
+let currentValue: number | undefined;
+switch (req.type) {
+  case "lessons-completed": currentValue = progressCount; break;
+  case "streak": currentValue = user.streak; break;
+  // ...
+}
+```
+
+---
+
+### 3. React Best Practices
+
+#### 3.1 🔴 Critical: `useEffect` dependency arrays missing dependencies
+
+**`src/app/page.tsx:26-58`** — accesses `user.hearts`, `user.gems`, `user.xp`, `user.totalXp`, `user.level`, `user.league`, `currentScreen.name`, but deps only include `[user?.id, user?.streak, currentScreen.name, hydrateFromServer, refresh]`. **Stale closure risk** — if `user.gems` changes but `user.streak` doesn't, the effect won't re-run, but the closures inside still reference old `user` values.
+
+**Fix**: Either include all accessed fields in deps, or capture them at the top of the effect:
+```ts
+useEffect(() => {
+  if (!user) return;
+  const { hearts, gems, xp, totalXp, level, league } = user;
+  // ...
+}, [user?.id, user?.streak, ...]); // intentional — only re-run when identity/streak changes
+```
+
+**`src/components/app/lesson-screen.tsx:838-876`** — `useEffect` deps include `user` (whole object) which changes identity on every `refresh()`. This will re-run the lesson-complete API call every time auth refreshes.
+
+**Fix**: Capture only the primitive fields needed (`user?.gems`, `user?.xp`, `user?.totalXp`) in deps, not the whole object.
+
+#### 3.2 🔴 Critical: `dictionary-screen.tsx:106` — Mutates react-query cached data
+
+```tsx
+{data?.categories.sort().map((c) => ...)}
+```
+`.sort()` mutates the array in place. The array belongs to react-query's cache → next render uses already-sorted array (idempotent here, lucky) and **triggers cache mutation warnings** in dev. Can cause subtle bugs in Strict Mode.
+
+**Fix**: `data?.categories.slice().sort().map(...)` or `[...(data?.categories ?? [])].sort()`.
+
+#### 3.3 🔴 Critical: `dictionary-screen.tsx:267-270` — `adding` state never resets on error
+
+```tsx
+const handleAdd = () => {
+  setAdding(true);
+  addMutation.mutate(); // fire-and-forget
+};
+```
+On `onError`, the toast shows but `adding` stays `true` forever → button permanently disabled. The mutation's `isPending` flag should be used instead.
+
+**Fix**: Remove the local `adding` state entirely and use `addMutation.isPending` from the `useMutation` hook.
+
+#### 3.4 🟠 High: Silent catch blocks / silent failures
+
+- `src/app/page.tsx:42` — `.catch(() => {/* silent */})` on `/api/user/streak-check` — user gets no feedback if streak-check fails.
+- `src/hooks/use-service-worker.ts:40-42` — `.catch(() => {})` on SW registration — silent failure (acceptable for SW, but log it).
+- `src/hooks/use-notifications.ts:25, 92` — `} catch { /* ignore */ }` — silent.
+- `src/lib/api/client.ts:12` — `await res.json().catch(() => ({}))` — silent JSON parse failure (acceptable since fallback is `{}`).
+- ESLint config has `no-empty: off`, enabling this pattern project-wide.
+
+**Fix**: At minimum, `console.error(err)` inside each catch. For user-facing operations, surface a toast.
+
+#### 3.5 🟠 High: `streak-milestone-watcher.tsx:33` — Mutating ref during render
+
+```tsx
+useEffect(() => {
+  // ...
+  shownMilestonesRef.current.add(m); // OK (in effect)
+});
+```
+This particular case is fine (mutation is inside `useEffect`, not during render). **However**, the broader pattern of using refs to track "shown" milestones means milestones unlocked while the component is unmounted will never show. Consider using a persisted Set in `localStorage` instead.
+
+#### 3.6 🟠 High: Index-based `key` props on dynamic lists (30+ instances)
+
+Examples: `ai-tutor-screen.tsx:99` (chat messages), `lesson-screen.tsx:220/382/395/465/532/589/747` (option buttons), `home-screen.tsx:546` (skeleton path), `vocabulary-screen.tsx:277` (static tips list).
+
+Index keys are OK for static lists but problematic for **dynamic lists** like AI chat messages — if a message is inserted/removed/reordered, React may reuse the wrong DOM nodes and break animations.
+
+**Fix**: For `ai-tutor-screen.tsx`, use `key={m.id}` (add a client-side `id` to each `Msg` via `crypto.randomUUID()` or a counter ref).
+
+#### 3.7 🟠 High: `lesson-screen.tsx` Confetti uses `Math.random()` during render
+
+`src/components/app/lesson-screen.tsx:984-988` — `<Confetti/>` calls `Math.random()` 4× per piece × 24 pieces = 96 calls per render. Since `LessonComplete` re-renders on state changes (submitting → false, rewards → set), the confetti re-randomizes each time → visual jank.
+
+**Fix**: Generate the random values once with `useMemo(() => Array.from({length: 24}, () => ({...})), [])`.
+
+#### 3.8 🟡 Medium: `useEffect` cleanup missing for async operations
+
+`src/components/app/lesson-screen.tsx:838` uses `let active = true;` and `return () => { active = false; }` — good pattern. But `src/app/page.tsx:29` `fetch().then().then()` doesn't have an `active` guard — if the component unmounts before the fetch resolves, it'll call `refresh()` and `toast.*` on an unmounted component (React 16+ warns, React 18+ silently ignores but still leaks).
+
+**Fix**: Wrap in `let active = true;` and check before calling `setX`/`toast`.
+
+#### 3.9 🟡 Medium: `theme-preview-modal.tsx:24-32` — Effect cleanup restores theme
+
+```tsx
+useEffect(() => {
+  if (themeId) applyThemeCss(themeId);
+  return () => applyThemeCss(active);
+}, [themeId, active]);
+```
+If `active` changes while `themeId` is set, the cleanup runs and reapplies `active` momentarily, then the effect re-applies `themeId`. Brief flash. Fix: split into two effects — one for `themeId` mount/unmount, one to track `active`.
+
+#### 3.10 🟡 Medium: `useState` that should be `useRef`
+
+- `src/components/app/vocabulary-screen.tsx:33` — `const [done, setDone] = useState(false);` is fine.
+- `src/components/app/install-prompt.tsx:20` — `deferredPrompt` state is set once and read once. Could be `useRef` to avoid re-render. But because `visible` is also derived from it, current pattern is OK.
+
+#### 3.11 🟢 Low: `useEffect` with missing deps (intentional)
+
+`react-hooks/exhaustive-deps` is disabled in ESLint, so all these slip through:
+- `src/components/app/install-prompt.tsx:23-38` — effect deps `[]` but uses `setDeferredPrompt`, `setVisible` (stable setters, OK).
+- `src/components/app/search-screen.tsx:34-37` — debounce effect deps `[query]` (OK).
+- `src/hooks/use-mobile.ts:8`, `src/hooks/use-toast.ts:177`, `src/components/ui/sidebar.tsx:97`, `src/components/ui/calendar.tsx:184`, `src/components/ui/carousel.tsx:91,96` — UI library effects, generally OK.
+
+---
+
+### 4. Code Organization
+
+#### 4.1 🔴 Files over 300 lines that should be split
+
+| File | Lines | Suggestion |
+|------|-------|-----------|
+| `src/components/app/lesson-screen.tsx` | 1003 | Split into `lesson-screen.tsx` (orchestrator), `exercise-multiple-choice.tsx`, `exercise-match-pairs.tsx`, `exercise-build-sentence.tsx`, `exercise-fill-blank.tsx`, `exercise-listen-choose.tsx`, `exercise-translate.tsx`, `lesson-intro.tsx`, `lesson-complete.tsx`, `confetti.tsx`. |
+| `src/components/app/home-screen.tsx` | 553 | Extract `LearningPath`, `LessonNode`, `DailyWord`, `DailyGoalBanner`, `NotificationNudge`, `CourseChip` into separate files. |
+| `src/lib/api/client.ts` | 450 | Extract response types into `src/lib/api/types.ts`; split `api` object into `auth.api.ts`, `lessons.api.ts`, `vocabulary.api.ts`, `admin.api.ts`, etc. |
+| `src/components/app/dictionary-screen.tsx` | 449 | Extract `WordDetailModal`, `CategoryProgress` into separate files. |
+| `src/components/app/shop-screen.tsx` | 400 | Extract `ShopItemCard`, `themeItems` config. |
+| `src/components/app/admin-analytics.tsx` | 393 | Extract `SummaryCard`, `ChartCard`, individual chart components. |
+| `src/components/app/admin-lessons.tsx` | 379 | Extract `LessonFormDialog`, `AdminUnitRow`. |
+| `src/components/app/admin-vocabulary.tsx` | 371 | Extract `VocabFormDialog`, `VocabRow`. |
+| `src/components/app/settings-screen.tsx` | 354 | Extract `ThemeSelectorRow`, `ReminderTimeRow`, `ToggleSwitch`, `Section`, `Row`. |
+| `src/components/app/admin-users.tsx` | 346 | Extract `UserEditDialog`, `UserRow`. |
+| `src/components/app/vocabulary-screen.tsx` | 314 | Extract `FlipCard`, `VocabHome`, `VocabComplete`. |
+
+#### 4.2 🟠 Duplicated patterns
+
+1. **`colors: Record<string, string>` map** is duplicated in:
+   - `admin-users.tsx:182` (Stat component)
+   - `admin-screen.tsx:266` (Kpi component)
+   - `admin-analytics.tsx:345` (SummaryCard)
+   - `profile-screen.tsx:186` (StatTile)
+   - `lesson-screen.tsx:952` (StatCard)
+   
+   Fix: Extract to `src/lib/utils/colors.ts`:
+   ```ts
+   export const STAT_TONES: Record<"emerald"|"gold"|"teal"|"amber", string> = { ... };
+   ```
+
+2. **Inline SVG back/chevron-left button** duplicated in 7+ files (`search-screen.tsx:58`, `dictionary-screen.tsx:70`, `friends-screen.tsx:27`, `admin-screen.tsx:38`, `settings-screen.tsx:26`, `achievements-screen.tsx:24`, `ai-tutor-screen.tsx:74`).
+   
+   Fix: Create `src/components/app/BackButton.tsx` and use everywhere.
+
+3. **`if (confirm(...)) deleteMutation.mutate(...)` pattern** in `admin-users.tsx:131`, `admin-lessons.tsx:193`, `admin-vocabulary.tsx:149`. Fix: extract a `<ConfirmDialog>` component using shadcn's AlertDialog.
+
+4. **`(e as Error).message` pattern** appears 14+ times. Fix: Create `getErrorMessage(e: unknown): string` utility in `src/lib/utils.ts`.
+
+5. **Achievement-unlock toast loop** duplicated in `vocabulary-screen.tsx:51`, `lesson-screen.tsx:862`. Fix: Extract `showAchievementToasts(list)` into `src/lib/achievements.ts`.
+
+#### 4.3 🟠 SRP violations
+
+- `src/app/api/lessons/complete/route.ts` (POST) does: auth check, validate input, compute rewards, upsert progress, update user XP, upsert leaderboard entry, recompute level (manual loop — duplicates `levelFromXp` from game-store), update streak, unlock next lesson (with full unit/course tree traversal), check achievements. **~140 lines for one endpoint.** Fix: extract pure functions `computeRewards(lesson, accuracy, stars)`, `updateStreak(user)`, `unlockNextLesson(lesson)`, etc.
+
+- `src/components/app/shop-screen.tsx:43-106` — Four purchase handlers (`buyHeartRefill`, `buyStreakFreeze`, `buyXpBoost`, `buyHeartMax`) each duplicate try/catch + toast + state sync. Fix: a generic `purchase(itemId, cost, onSuccess)` helper.
+
+#### 4.4 🟡 Inconsistent naming
+
+- `back` vs `goBack` (`top-bar.tsx:26` uses `goBack`, everything else uses `back`).
+- `setActiveIdx` (home) vs `setSelectedLeague` (leaderboard) vs `setCategory` (admin-vocab) — fine, but `useState(0)` for activeIdx vs `useState(userLeague)` for selectedLeague — initial values inconsistent.
+- Component names: PascalCase ✅, but `Confetti` (function) vs `DailyWord` (function) — fine. Inconsistent: `EmptyState` in admin-vocabulary vs `PathSkeleton` in home-screen — both could be `<Empty/>` and `<Skeleton variant="path"/>`.
+- API route file paths use kebab-case ✅, but `vocab-deck` (with hyphen) vs `vocab` (without) is confusing.
+
+---
+
+### 5. Error Handling
+
+#### 5.1 🟠 Inconsistent fetch patterns
+
+- Most code uses the `api` client (`src/lib/api/client.ts`) with centralized error handling.
+- `src/components/app/shop-screen.tsx:59, 77` uses raw `fetch()` for `/api/user/purchase`, bypassing the api client. The handler does its own try/catch and `data.error` extraction. **Two parallel patterns for the same operation type.**
+- `src/app/page.tsx:29` uses raw `fetch()` for `/api/user/streak-check` with `.then().catch()` instead of async/await + try/catch.
+
+**Fix**: Add `api.user.purchase(itemId)` and `api.user.streakCheck()` to `client.ts`. Remove raw fetches from components.
+
+#### 5.2 🟡 API error codes
+
+Most routes return `400 / 401 / 403 / 404 / 409 / 422 / 500` ✅. Inconsistencies:
+- `src/app/api/auth/login/route.ts:19,22` returns 401 for "user not found" — should be 401 (correct) but the message "Invalid credentials" is good (doesn't leak existence).
+- `src/app/api/lessons/[id]/route.ts:5` — no auth required to view a lesson. If `userId` is null, returns lesson with `progress: null`. This is intentional (preview) but **any unauthenticated user can fetch any lesson by ID**. May be desired for marketing, but should be documented.
+- `src/app/api/leaderboard/route.ts:6` — public access (no auth check) — fine for a leaderboard.
+- `src/app/api/vocabulary/categories/route.ts:11` — auth required ✅.
+- All `requireAdmin()` checks return 403 ✅.
+- No rate limiting on auth endpoints (`/api/auth/login`, `/api/auth/signup`) — should add at minimum 5 req/sec/IP to prevent brute force. **Security gap.**
+
+#### 5.3 🟡 Error states shown to users
+
+- `useAuth().error` is set but never rendered anywhere (`auth-screen.tsx` manages its own local `error` state, ignoring the store's `error`). The store's `error` field is dead code.
+- `LessonComplete` (lesson-screen.tsx:869) shows toast on error ✅, but if the lesson-complete API permanently fails, the user is stuck on a "submitting…" spinner (no retry button).
+- `SearchScreen` shows "no results" but no error state if the API call rejects (react-query will retry, but eventually fails silently).
+
+---
+
+### 6. Performance
+
+#### 6.1 🟠 Missing `useMemo` / `useCallback`
+
+- `src/components/app/admin-lessons.tsx:67-71` — `reduce` to group lessons by unit runs on every render (even when filtering). Should be `useMemo(() => ..., [data, courseFilter])`.
+- `src/components/app/lesson-screen.tsx:996` — `shuffle` is wrapped in `useMemo` ✅. Good.
+- `src/components/app/admin-analytics.tsx:304` — `Math.max(...(data?.courseCompletion.map(...)))` runs on every render. Should be `useMemo`.
+- `src/components/app/profile-screen.tsx:124` — `achievements.slice(0, 4).map(...)` runs every render. Minor (4 items) but should still memoize if achievements list is large.
+
+#### 6.2 🟠 Unnecessary re-renders
+
+- `src/components/app/top-bar.tsx:22-31` — subscribes to ALL game store fields via `const { hearts, maxHearts, ... } = useGame();`. Every state change (including `nextHeartAt` ticking every 5s via `regenHeartTick`) re-renders the whole TopBar. Fix: `useGame((s) => s.hearts)` etc. with selectors.
+- `src/components/app/shop-screen.tsx:36` — same issue: `const { gems, hearts, maxHearts, spendGems, refillHearts, streak } = useGame();` subscribes to all.
+- `src/components/app/lesson-screen.tsx:130` — `useGame.getState().hearts` (no subscription, see 2.8) — opposite problem.
+- `src/components/app/page.tsx:18` — `const { hydrateFromServer } = useGame();` subscribes to entire store to get one stable function. Fix: `const hydrateFromServer = useGame((s) => s.hydrateFromServer);`.
+
+#### 6.3 🟡 N+1 patterns in API routes
+
+- `src/app/api/vocabulary/categories/route.ts:21-24` — fetches ALL `userVocabulary` rows with included `vocabulary` (selecting just `category`). For a user with 1000+ reviews, this loads 1000+ rows just to count by category. Fix: use `groupBy` on `UserVocabulary` joined to `Vocabulary`, or a raw SQL `SELECT category, COUNT(*) FROM ... GROUP BY category`.
+- `src/app/api/lessons/complete/route.ts:111-133` — to find the next lesson, fetches ALL lessons in the unit, then ALL units in the course with ALL their lessons. Could be a single targeted query: `db.lesson.findFirst({ where: { unit: { courseId, order: { gt: ... } } }, orderBy: [{ unit: { order: "asc" } }, { order: "asc" }] })`.
+- `src/app/api/vocabulary/route.ts:26-30` — fetches ALL `userVocabulary` for the user just to build `seenIds` to exclude. For users with 1000+ reviews, this is slow. Fix: use `NOT IN` subquery via Prisma: `where: { id: { notIn: db.userVocabulary.findMany({ where: { userId }, select: { vocabularyId: true } }) } }` (Prisma doesn't support subqueries directly — would need raw SQL or two queries with `take` limit).
+
+#### 6.4 🟡 Missing pagination
+
+- `src/app/api/vocabulary/route.ts:51` — `mode: "all"` returns up to 100 words in one shot. Could be paginated like `browse`.
+- `src/app/api/vocabulary/route.ts:21` — `take: 20` for due cards ✅.
+- `src/app/api/admin/lessons/route.ts:10` — default `limit: 50` (admin can change) ✅.
+- `src/app/api/friends/route.ts` — `following` list is not paginated. If a user follows 1000+ people, this returns all. Fix: add `?page&limit`.
+- `src/app/api/friends/suggestions/route.ts` — same issue, no pagination.
+
+#### 6.5 🟢 Confetti animation performance
+
+`lesson-screen.tsx:974-994` — 24 absolutely-positioned `<div>`s with CSS animations. Acceptable, but `will-change: transform` would help. Also animations re-run on every render (see 3.7).
+
+---
+
+### 7. Accessibility
+
+#### 7.1 🟠 Missing `aria-label` on icon-only buttons
+
+Examples (non-exhaustive — 30+ instances):
+- `src/components/app/lesson-screen.tsx:205-211` — speak button (only Volume2 icon).
+- `src/components/app/lesson-screen.tsx:441-443` — speak button for FillBlank.
+- `src/components/app/lesson-screen.tsx:509-513` — large audio play button (ListenChoose).
+- `src/components/app/lesson-screen.tsx:575-580` — speak button for Translate.
+- `src/components/app/vocabulary-screen.tsx:128-143` — quality buttons have visible Bengali labels ✅ but no `aria-label`.
+- `src/components/app/vocabulary-screen.tsx:174-179` — speak button (Volume2 only).
+- `src/components/app/dictionary-screen.tsx:155-161` — speak button (Volume2 + arabic letter).
+- `src/components/app/dictionary-screen.tsx:301-313` — large speak button.
+- `src/components/app/theme-preview-modal.tsx:85-90` — close button (X icon).
+- `src/components/app/ai-tutor-screen.tsx:73-78` — back button (SVG chevron).
+- `src/components/app/ai-tutor-screen.tsx:89-91` — clear chat button (Trash2 icon).
+- `src/components/app/friends-screen.tsx:27-32` — back button (SVG chevron).
+- `src/components/app/admin-screen.tsx:38-42` — back button.
+- `src/components/app/settings-screen.tsx:26-30` — back button.
+- `src/components/app/achievements-screen.tsx:24-28` — back button.
+
+**Fix**: Add `aria-label="..."` to each. Or extract a `<IconButton label="..." onClick={...}>` wrapper.
+
+#### 7.2 🟠 Clickable `<div>` / `<motion.div>` without keyboard support
+
+- `src/components/app/dictionary-screen.tsx:135-143` — `<motion.div onClick={() => setSelectedWord(word)}>` — not keyboard-accessible. Should be a `<button>` or have `role="button" tabIndex={0} onKeyDown`.
+- `src/components/app/shop-screen.tsx:280-291` — same pattern for theme cards.
+- `src/components/app/profile-screen.tsx:128-148` — achievement cards are non-interactive, OK.
+
+#### 7.3 🟡 Color contrast
+
+- `text-white/60` on gradient backgrounds (many instances, e.g. `top-bar.tsx`, `home-screen.tsx:331`) — likely fails WCAG AA 4.5:1 contrast ratio depending on gradient.
+- `text-[9px]` and `text-[10px]` text used throughout for badges — below the 12px minimum recommended for legibility.
+- `text-muted-foreground/60` (e.g. `home-screen.tsx:485`) — too low contrast.
+
+**Fix**: Audit with a contrast checker (Lighthouse a11y audit). Replace `text-white/60` with `text-white/80` minimum.
+
+#### 7.4 🟡 Form labels
+
+- `src/components/app/auth-screen.tsx` — uses `<Label htmlFor="name">` with `<Input id="name">` ✅. Good.
+- `src/components/app/admin-lessons.tsx:286-294` — `<select>` for unit selection has a `<Label>` above but not associated via `htmlFor`/`id`.
+- `src/components/app/admin-vocabulary.tsx:292-309` — same pattern for `<select>` elements.
+- `src/components/app/settings-screen.tsx:277-289` — `<select>` for reminder time has no label association.
+
+#### 7.5 🟢 Good patterns observed
+
+- `bottom-nav.tsx:71` — `aria-label={tab.labelBn}` ✅.
+- `home-screen.tsx:51` — search button has `aria-label` ✅.
+- `onboarding-screen.tsx:119` — slide dots have `aria-label` ✅.
+- `lesson-screen.tsx:117` — exit button has `aria-label` ✅.
+- `<img>` elements in `onboarding-screen.tsx:152, 167, 181` all have descriptive `alt` ✅.
+
+---
+
+### 8. Summary by Severity
+
+| Severity | Count | Action Required |
+|----------|-------|-----------------|
+| 🔴 Critical | 11 | Block deploy. Fix before any new features. |
+| 🟠 High | 22 | Fix in next sprint (Phase 16). |
+| 🟡 Medium | 18 | Fix opportunistically during related work. |
+| 🟢 Low | 5 | Optional polish. |
+
+### 9. Top 5 Priority Fixes
+
+1. **Re-enable TypeScript safety in `eslint.config.mjs` + `tsconfig.json`** (Section 0) — this single change forces all 44 confirmed TS errors to surface in CI and prevents regressions.
+2. **Fix `apiHandler` generic signature** (Section 2.1) — eliminates 25 TS18046 errors and properly types `req`/`ctx` in every route.
+3. **Consolidate the dual `SessionUser` types** (Section 2.2) — fixes TS2740 in `admin-guard.ts` and makes `getSessionUser()` return the full user shape.
+4. **Add `cost: number` to `CustomTheme`** (Section 2.3) — fixes 5 TS2339 errors AND fixes the broken "purchase info" panel in `ThemePreviewModal`.
+5. **Replace raw `fetch()` in `shop-screen.tsx` and `page.tsx` with `api` client methods** (Sections 5.1, 1.5, 1.6) — eliminates `any`-typed response data and centralizes error handling.
+
+### 10. Files Inspected
+
+All 60+ files in `src/` (client components, hooks, lib, API routes) and key config files (`tsconfig.json`, `eslint.config.mjs`, `package.json`, `prisma/schema.prisma`). Total source: ~8,958 lines across ~95 files. TypeScript compiler run: `npx tsc --noEmit` → 44 errors confirmed.
+
+---
+
+## Security Audit Report (AUDIT-SEC-1)
+
+**Auditor:** Chief Security Expert (DevSecOps)
+**Date:** 2026-07-25
+**Scope:** Full security audit of Next.js 16 + Prisma Arabic learning app — auth, sessions, API authorization, input validation, data exposure, XSS, rate limiting, secrets, OWASP Top 10.
+**Methodology:** Static code review of `src/lib/auth.ts`, `src/lib/session.ts`, `src/lib/api/admin-guard.ts`, all `src/app/api/**` route handlers, `prisma/schema.prisma`, `public/sw.js`, `next.config.ts`, `.env`, `.gitignore`. No code changes were made.
+
+### Executive Summary
+The app has a clean separation of concerns and uses Zod for most input validation, but **one critical vulnerability completely breaks authentication**: session tokens are not cryptographically signed and can be forged by anyone who knows (or guesses) a target user's `id`. Combined with the unauthenticated AI tutor endpoint, no rate limiting, and client-supplied lesson scoring, the application is **not safe to deploy to production** in its current state. The findings below are ordered by severity.
+
+### Severity counts
+- **Critical: 1**
+- **High: 5**
+- **Medium: 4**
+- **Low: 7**
+- **Total: 17 findings**
+
+---
+
+### CRITICAL
+
+#### C1. Session tokens are forgeable — full authentication bypass
+- **File:** `src/lib/auth.ts` (lines 40–54), `src/lib/session.ts` (lines 30–45)
+- **Vulnerability:** `createSessionToken()` produces `base64url(userId + "." + timestamp + "." + random8bytes)`. There is **no HMAC, no signature, no server secret**. `parseSessionToken()` only splits on `.` and returns the first segment as `userId`. `getSessionUser()` then trusts that `userId` and loads the matching user from the DB. The `timestamp` and `random` segments are decorative — they are never validated or compared against anything.
+- **Impact:** Anyone who knows a user's `id` (a CUID, easily obtained from `/api/leaderboard`, `/api/friends/suggestions`, or `/api/friends`) can forge a valid session cookie:
+  ```js
+  // Attacker code (browser console or curl):
+  const token = btoa('TARGET_USER_ID.0.x').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  document.cookie = `as_session=${token}; path=/;`;
+  location.reload();  // → now logged in as the target user, including admin
+  ```
+  This is a **complete authentication bypass and account takeover** for any user, including admins. An attacker can: read any user's progress, promote themselves to admin via forged admin session, delete other users, dump the user table via admin endpoints, etc.
+- **OWASP Category:** A02 Cryptographic Failures, A07 Identification & Authentication Failures
+- **Severity:** Critical
+- **Fix:** Sign the token with an HMAC using a server secret, and verify the signature on every request. Minimal change to `src/lib/auth.ts`:
+  ```ts
+  import { createHmac, timingSafeEqual } from "crypto";
+
+  const SESSION_SECRET = process.env.SESSION_SECRET;
+  if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+    throw new Error("SESSION_SECRET must be set (>=32 chars)");
+  }
+
+  export function createSessionToken(userId: string): string {
+    const payload = { sub: userId, iat: Date.now(), jti: randomBytes(16).toString("hex") };
+    const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const sig = createHmac("sha256", SESSION_SECRET).update(body).digest("base64url");
+    return `${body}.${sig}`;
+  }
+
+  export function parseSessionToken(token: string): { userId: string } | null {
+    try {
+      const [body, sig] = token.split(".");
+      if (!body || !sig) return null;
+      const expected = createHmac("sha256", SESSION_SECRET).update(body).digest();
+      const got = Buffer.from(sig, "base64url");
+      if (expected.length !== got.length || !timingSafeEqual(expected, got)) return null;
+      const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+      if (typeof payload.sub !== "string") return null;
+      // Optional: enforce max age (e.g., 30 days) using payload.iat
+      return { userId: payload.sub };
+    } catch {
+      return null;
+    }
+  }
+  ```
+  Add a strong `SESSION_SECRET` (≥32 chars, random) to `.env` (and rotate it). Consider adopting `iron-session`, `jose`, or NextAuth.js for a battle-tested implementation. Additionally, store a `sessionVersion` on the user and increment it on logout/password change so old tokens are invalidated.
+
+---
+
+### HIGH
+
+#### H1. AI tutor endpoint has no authentication and no rate limit
+- **File:** `src/app/api/ai/tutor/route.ts` (lines 33–59)
+- **Vulnerability:** The route handler calls `apiHandler` and parses the body with Zod but **never calls `getSessionUser()`**. Anonymous users (or attackers) can call `POST /api/ai/tutor` repeatedly. The schema also places **no length limit on `messages[].content`** and **no cap on the number of messages**, so each call can submit megabytes of text and trigger expensive LLM completions.
+- **Impact:** Cost abuse (unbounded LLM spending), denial-of-wallet, and potential content-policy bypass (no user is accountable). The z-ai-web-dev-sdk has no built-in abuse protection.
+- **OWASP Category:** A01 Broken Access Control, A04 Insecure Design
+- **Severity:** High
+- **Fix:**
+  1. Require auth at the top of the handler:
+     ```ts
+     const session = await getSessionUser();
+     if (!session) return fail("Not authenticated", 401);
+     ```
+  2. Add per-IP and per-user rate limiting (e.g., 10 requests/minute, 100/day) using an in-memory token bucket or `@upstash/ratelimit`.
+  3. Constrain the schema:
+     ```ts
+     const tutorSchema = z.object({
+       messages: z.array(z.object({
+         role: z.enum(["user", "assistant"]),
+         content: z.string().min(1).max(2000),
+       })).max(20),
+       context: z.object({ level: z.number().int().min(1).max(99).optional(), currentLesson: z.string().max(120).optional() }).optional(),
+     });
+     ```
+  4. Truncate total prompt size before sending to the LLM.
+
+#### H2. Lesson completion trusts client-supplied score/stars
+- **File:** `src/app/api/lessons/complete/route.ts` (lines 6–22, 28–31); same issue in `src/app/api/lessons/[id]/complete/route.ts`
+- **Vulnerability:** The client POSTs `lessonId`, `score`, `stars`, `correctCount`, `totalCount`. The server validates their ranges (0–100, 0–3, etc.) but **never verifies**:
+  - The lesson is unlocked for the user (status `available` or `completed`),
+  - The user actually answered the exercises,
+  - The submitted `score`/`stars`/`correctCount`/`totalCount` reflect what the user did.
+- **Impact:** Any authenticated user can max out XP, gems, streak, and unlock every achievement by looping:
+  ```bash
+  for id in <every-lesson-id>; do
+    curl -X POST /api/lessons/complete -d '{"lessonId":"'$id'","score":100,"stars":3,"correctCount":10,"totalCount":10}'
+  done
+  ```
+  Leaderboards are trivially cheated; achievement rewards (which grant +10 gems each) cascade; league promotions are meaningless.
+- **OWASP Category:** A04 Insecure Design
+- **Severity:** High
+- **Fix:**
+  1. Server-side score verification: send the user's answers, not the computed score, and recompute server-side:
+     ```ts
+     const completeSchema = z.object({
+       lessonId: z.string(),
+       answers: z.array(z.object({
+         exerciseIndex: z.number().int().min(0),
+         response: z.union([z.string(), z.array(z.string()), z.number()]),
+       })),
+     });
+     ```
+     Then load the lesson, evaluate each answer against `exercisesJson`, and compute `score`, `stars`, `correctCount`, `totalCount` server-side.
+  2. Verify the user's progress for the lesson is `available` or `completed` (not `locked`):
+     ```ts
+     const prog = await db.userProgress.findUnique({ where: { userId_lessonId: { userId: session.id, lessonId } } });
+     if (!prog || prog.status === "locked") return fail("Lesson is locked", 403);
+     ```
+  3. Add a per-user rate limit (e.g., max 5 completions per minute) to detect scripted abuse.
+
+#### H3. Vocabulary review accepts arbitrary quality and farms XP
+- **File:** `src/app/api/vocabulary/review/route.ts` (lines 7–10, 23–75)
+- **Vulnerability:** The endpoint accepts `{ vocabularyId, quality }` from the client. It does **not** verify:
+  - The vocabulary exists (a fake `vocabularyId` creates a dangling `UserVocabulary` row via the `create` branch of the upsert),
+  - The card is actually due (`dueDate <= now`),
+  - The user answered correctly — `quality` is fully client-controlled.
+  Any quality ≥ 3 awards +2 XP and updates the leaderboard. There is no rate limit.
+- **Impact:** XP/gem/leaderboard inflation via scripted `POST /api/vocabulary/review { vocabularyId: any, quality: 5 }` loops; achievements that depend on `vocab-learned` unlock without any real learning; the leaderboard becomes meaningless.
+- **OWASP Category:** A04 Insecure Design
+- **Severity:** High
+- **Fix:**
+  1. Verify the vocabulary exists before upserting.
+  2. Verify the card is in the user's deck and due (`dueDate <= now`); reject reviews of not-due cards.
+  3. Replace client-supplied `quality` with a server-evaluated correctness check (client sends `response`, server compares against `vocabulary` and computes quality).
+  4. Add a per-user rate limit (e.g., max 60 reviews/minute).
+
+#### H4. No rate limiting on login / signup — brute force and account spam
+- **Files:** `src/app/api/auth/login/route.ts`, `src/app/api/auth/signup/route.ts`
+- **Vulnerability:** No rate limiting or lockout on either endpoint. An attacker can submit thousands of login attempts per second (password brute force, credential stuffing) or create thousands of accounts (bot signups, leaderboard spam). There is also no CAPTCHA, no email verification, and no breach-list check.
+- **Impact:** Given the weak 6-char minimum password policy (see M2), automated password cracking against known emails is fast. Bot account creation enables leaderboard pollution and inflates admin metrics.
+- **OWASP Category:** A07 Identification and Authentication Failures
+- **Severity:** High
+- **Fix:**
+  1. Add a per-IP and per-email rate limiter (e.g., 5 login attempts per minute per IP, 10 per email per hour) using `@upstash/ratelimit` or a Redis-backed token bucket.
+  2. Return HTTP 429 with `Retry-After` header when exceeded.
+  3. Add email verification (send a signed link on signup; don't grant admin-relevant powers until verified).
+  4. Add a CAPTCHA on signup after N attempts from the same IP.
+
+#### H5. `.env` file is committed to git
+- **Files:** `.env` (committed in initial commit `e4dfce6`), `.gitignore`
+- **Vulnerability:** `git ls-files` shows `.env` is tracked, even though `.gitignore` lists `.env*`. The file was committed before the ignore rule was added. Currently it only contains `DATABASE_URL=file:/home/z/my-project/db/custom.db` (low-sensitivity), but any future secret added to `.env` (e.g., `SESSION_SECRET` from C1, `OPENAI_API_KEY`, SMTP creds) will also be committed unless explicitly removed from tracking.
+- **Impact:** Secrets in version control are exposed to anyone with repo access (including public GitHub repo `sharif418/arabic-sikhi-app`). Past commits remain in git history even after deletion.
+- **OWASP Category:** A05 Security Misconfiguration
+- **Severity:** High
+- **Fix:**
+  1. Remove the file from tracking without deleting it locally:
+     ```bash
+     git rm --cached .env
+     git commit -m "security: stop tracking .env"
+     ```
+  2. Scrub the secret from history (since the repo is public on GitHub, a plain `git rm` is insufficient — use `git filter-repo` or BFG Repo-Cleaner, then force-push, then rotate any secrets that were ever in the file).
+  3. Use a secrets manager (Doppler, Vercel env vars, AWS Secrets Manager) for production secrets; never commit `.env` files.
+
+---
+
+### MEDIUM
+
+#### M1. Service worker caches authenticated API responses without auth awareness
+- **File:** `public/sw.js` (lines 100–104, 80–90)
+- **Vulnerability:** The SW intercepts `/api/*` GETs with a `networkFirst` strategy and caches responses in `as-api-v1.0.0`, keyed **only by URL**. No `Authorization`/`Cookie` dimension is included in the cache key, and no `Cache-Control: no-store` is honored.
+- **Impact:** On a shared device: user A logs out, user B logs in, and B may be served cached responses from A's session (e.g., `/api/user/stats`, `/api/auth/me`, `/api/admin/stats`, `/api/friends`). Even on a single-user device, sensitive data lingers in the cache for 30 days. Admin responses cached while an admin was logged in could be served to non-admin users who later hit the same URL.
+- **OWASP Category:** A05 Security Misconfiguration, A01 Broken Access Control
+- **Severity:** Medium
+- **Fix:**
+  1. Whitelist only public, auth-independent endpoints for caching:
+     ```js
+     const CACHEABLE_API = /^\/api\/(courses|leaderboard|achievements)(\/|$|\?)/;
+     if (url.pathname.startsWith("/api/")) {
+       if (CACHEABLE_API.test(url.pathname)) {
+         event.respondWith(networkFirst(request, API_CACHE));
+       } else {
+         event.respondWith(fetch(request)); // never cache auth'd responses
+       }
+       return;
+     }
+     ```
+  2. Alternatively, add `Cache-Control: no-store` to sensitive responses in `ok()`/`fail()` helpers and have the SW respect it.
+  3. Clear `API_CACHE` on logout (post a message from the client).
+
+#### M2. Password policy is below NIST/OWASP recommendations
+- **File:** `src/app/api/auth/signup/route.ts` (line 10)
+- **Vulnerability:** `password: z.string().min(6).max(100)` — minimum 6 characters, no complexity, no breach-list check. NIST SP 800-63B recommends ≥8 chars and checking against breached-password lists (e.g., HaveIBeenPwned API or a local bloom filter).
+- **Impact:** Combined with no rate limiting (H4), password cracking against known emails is fast. The default demo credentials (`demo1234`, `admin123`) reinforce the weak-password culture.
+- **OWASP Category:** A07 Identification and Authentication Failures
+- **Severity:** Medium
+- **Fix:** Bump to `z.string().min(8).max(128)` and add a breached-password check. Reject the top 1000 common passwords. Encourage passphrases via a `z.string().min(12)` option. Force a password change for the default `admin123`/`demo1234` accounts on first login.
+
+#### M3. Admin self-deletion / self-demotion not blocked
+- **File:** `src/app/api/admin/users/[id]/route.ts` (lines 14–60)
+- **Vulnerability:** The PUT and DELETE handlers guard only against demoting/deleting the *last* admin (`adminCount <= 1`). They do **not** check whether the target is the currently-logged-in admin. The inline comment `// Prevent self-demotion (last admin safeguard)` is misleading — the code never compares `id === session.user.id`. An admin can therefore:
+  - Demote themselves to `user` (accidental lockout from admin panel),
+  - Delete their own account (session becomes invalid mid-request; weird state).
+- **OWASP Category:** A01 Broken Access Control
+- **Severity:** Medium
+- **Fix:** Add explicit self-checks in both handlers:
+  ```ts
+  if (id === guard.user.id) {
+    return fail("Cannot modify your own account via this endpoint", 400);
+  }
+  ```
+  Place this right after the `existing` lookup. If self-service account edits are needed, expose them through a separate `/api/user/profile` endpoint with a more restrictive schema.
+
+#### M4. Admin lesson exercises schema is `z.array(z.any())` — arbitrary JSON stored
+- **Files:** `src/app/api/admin/lessons/route.ts` (line 22), `src/app/api/admin/lessons/[id]/route.ts` (line 14)
+- **Vulnerability:** `exercises: z.array(z.any())` allows any JSON shape to be stored as `exercisesJson`. The lesson player (`src/components/app/lesson-screen.tsx`) accesses `ex.promptBn`, `ex.answer`, `ex.options`, etc. without runtime shape checks, so a malformed exercise object causes a client-side crash (white-screen DoS for that lesson).
+- **Impact:** An admin (or a compromised admin session via C1) can break the lesson player for all users by storing `[{ "garbage": true }]` as the exercises. Lower severity because admin is trusted, but the validation gap means even well-intentioned admins can store subtly-wrong data that crashes clients.
+- **OWASP Category:** A03 Injection (data-shape), A04 Insecure Design
+- **Severity:** Medium
+- **Fix:** Replace `z.any()` with the existing `Exercise` discriminated union from `src/lib/types/index.ts`:
+  ```ts
+  const exerciseSchema = z.discriminatedUnion("type", [
+    z.object({ type: z.literal("multiple-choice"), prompt: z.string().min(1), promptBn: z.string().optional(), arabic: z.string().optional(), audio: z.string().optional(), options: z.array(z.string()).min(2), answer: z.number().int().min(0), hint: z.string().optional() }),
+    z.object({ type: z.literal("match-pairs"), prompt: z.string().min(1), promptBn: z.string().optional(), pairs: z.array(z.object({ left: z.string(), right: z.string() })).min(2) }),
+    z.object({ type: z.literal("build-sentence"), prompt: z.string().min(1), promptBn: z.string().optional(), tokens: z.array(z.string()).min(1), answer: z.string().min(1) }),
+    z.object({ type: z.literal("fill-blank"), prompt: z.string().min(1), promptBn: z.string().optional(), arabic: z.string().min(1), answer: z.string().min(1), options: z.array(z.string()).min(2) }),
+    z.object({ type: z.literal("listen-choose"), prompt: z.string().min(1), promptBn: z.string().optional(), audio: z.string().min(1), arabicText: z.string().min(1), options: z.array(z.string()).min(2), answer: z.number().int().min(0) }),
+    z.object({ type: z.literal("translate"), prompt: z.string().min(1), promptBn: z.string().optional(), arabic: z.string().min(1), options: z.array(z.string()).min(2), answer: z.number().int().min(0) }),
+  ]);
+  const createLessonSchema = z.object({ /* ... */ exercises: z.array(exerciseSchema).default([]) });
+  ```
+
+---
+
+### LOW
+
+#### L1. `friends/suggestions` allows email enumeration
+- **File:** `src/app/api/friends/suggestions/route.ts` (lines 28–35)
+- **Vulnerability:** The `OR` clause includes `{ email: { contains: q } }`, so an attacker can probe whether a specific email is registered by submitting `q=` fragments and observing match counts. The response itself does not include emails, but the count is a side channel.
+- **OWASP Category:** A01 Broken Access Control (info disclosure)
+- **Severity:** Low
+- **Fix:** Remove the `email` branch from the public search OR — search by `name` only. Admins can use `/api/admin/users?q=` for email lookup.
+
+#### L2. Leaderboard exposes internal user IDs to anonymous users
+- **File:** `src/app/api/leaderboard/route.ts` (lines 5–48)
+- **Vulnerability:** The endpoint is unauthenticated and returns `userId` (CUID) for every entry. CUIDs are not guessable, but they enable targeting via `/api/friends/toggle`. Combined with C1 (forgeable sessions), an attacker can grab admin's CUID from the leaderboard and forge a session.
+- **OWASP Category:** A01 Broken Access Control (info disclosure)
+- **Severity:** Low
+- **Fix:** Strip `userId` from the response (return only `rank`, `name`, `streak`, `level`, `weeklyXp`, `totalXp`, `isMe`). If the client needs a stable handle, return a per-user opaque `leaderboardId` instead. Also consider requiring authentication for the endpoint.
+
+#### L3. Friends endpoints expose `lastActiveDate` of other users
+- **Files:** `src/app/api/friends/route.ts` (line 45), `src/app/api/friends/suggestions/route.ts` (line 50)
+- **Vulnerability:** Returns the exact `YYYY-MM-DD` of each user's last activity. This is a privacy leak (users can be stalked: "my friend hasn't opened the app in 12 days").
+- **OWASP Category:** A01 Broken Access Control (info disclosure)
+- **Severity:** Low
+- **Fix:** Coarsen to a boolean (`activeToday`, `activeThisWeek`, `activeThisMonth`) or remove the field entirely.
+
+#### L4. Signup reveals whether an email is registered
+- **File:** `src/app/api/auth/signup/route.ts` (line 22)
+- **Vulnerability:** `return fail("Email already registered", 409)` confirms that an email exists in the system. Login is well-behaved (returns the same `"Invalid credentials"` for unknown email vs. wrong password), but signup leaks the info.
+- **OWASP Category:** A07 Identification and Authentication Failures
+- **Severity:** Low
+- **Fix:** Return a generic `"Check your email to complete registration"` message and silently no-op (or send a "someone tried to register with your email" notification) when the email already exists. (Login is already correct — keep it that way.)
+
+#### L5. `secure` cookie flag disabled in non-production
+- **File:** `src/lib/session.ts` (line 22)
+- **Vulnerability:** `secure: process.env.NODE_ENV === "production"` means staging/preview deployments that run over HTTPS but with `NODE_ENV !== "production"` will transmit session cookies in cleartext if a downstream proxy downgrades to HTTP, and the cookie is not marked `Secure`.
+- **OWASP Category:** A02 Cryptographic Failures
+- **Severity:** Low
+- **Fix:** Default to `secure: true` and explicitly disable only when `process.env.DEV_HTTP === "1"`. Document that any non-local deployment must use HTTPS.
+
+#### L6. Prisma logs all SQL queries in non-production
+- **File:** `src/lib/db.ts` (line 10)
+- **Vulnerability:** `log: ['query']` writes every SQL statement (including parameter values) to the server console. If dev logs are ever exposed (error to client, log aggregator with broad access, container stdout captured by an attacker), they leak user data and schema details.
+- **OWASP Category:** A09 Security Logging and Monitoring Failures
+- **Severity:** Low
+- **Fix:** Use `log: ['error']` and only enable query logging behind an explicit `DEBUG_PRISA=1` flag. Never log parameter values in production.
+
+#### L7. `next.config.ts` silently ignores TypeScript errors at build time
+- **File:** `next.config.ts` (line 7)
+- **Vulnerability:** `typescript: { ignoreBuildErrors: true }` allows production builds to ship even when type errors exist. Type errors have masked security bugs in real-world incidents (e.g., a `user.role` field becoming `undefined` would silently bypass the admin guard, since `undefined !== "admin"`).
+- **OWASP Category:** A05 Security Misconfiguration
+- **Severity:** Low
+- **Fix:** Set `ignoreBuildErrors: false` (the default), fix any outstanding type errors, and add `tsc --noEmit` to CI.
+
+---
+
+### Positive Findings (things done well)
+- `scryptSync` password hashing with per-user 16-byte random salt and 64-byte key length is appropriate.
+- `timingSafeEqual` is used in `verifyPassword` to prevent timing side channels.
+- Session cookie is `httpOnly`, `sameSite: "lax"`, and has a 30-day `maxAge`.
+- Login returns generic `"Invalid credentials"` for both unknown email and wrong password (good).
+- All admin routes consistently call `requireAdmin()` (the guard itself is correct).
+- No raw SQL via `$queryRawUnsafe` anywhere — Prisma parameterizes all queries (no SQL injection risk).
+- No use of `eval`, `new Function`, `document.write`, or unsanitized `.innerHTML`.
+- Only one `dangerouslySetInnerHTML` usage (shadcn `chart.tsx` ChartStyle) and it interpolates only developer-controlled theme color values, not user input.
+- AI tutor replies are rendered as plain React text (no HTML injection surface in the chat UI).
+- Admin route input validation uses Zod everywhere; mutations are properly typed.
+- Cascade deletes are configured on FK relations, preventing orphan rows.
+- `sameSite: "lax"` mitigates CSRF for state-changing POST/PUT/DELETE (no GETs mutate state).
+- Last-admin safeguard exists (just needs the self-check from M3).
+
+---
+
+### Recommended Priority Order for Remediation
+1. **C1 (forgeable sessions)** — block all auth bypass today; do not ship until fixed.
+2. **H5 (.env in git)** — purge from history, rotate any leaked secrets.
+3. **H1 (unauthenticated AI tutor)** — at minimum add auth + per-user cap; full rate-limit next.
+4. **H2 (client-supplied lesson scoring)** — server-side answer evaluation.
+5. **H3 (vocabulary review XP farming)** — server-side correctness check + rate limit.
+6. **H4 (auth rate limiting)** — add `@upstash/ratelimit` or equivalent.
+7. **M1 (SW caching auth'd APIs)** — whitelist public endpoints only.
+8. **M2 (password policy)** — bump to ≥8 chars + breach check.
+9. **M3 (admin self-action)** — add `id === session.user.id` guard.
+10. **M4 (lesson exercise schema)** — replace `z.any()` with discriminated union.
+11. **L1–L7** — schedule into the next hardening sprint.
+
+### Final Verdict
+**Status: ❌ NOT production-ready.** The forgeable session token (C1) is a critical, trivially-exploitable authentication bypass. Until it is fixed, no other security control matters — an attacker can become any user, including admin, in under a minute using only the leaderboard endpoint and the browser console. After C1, H1–H5 should be closed before any public deployment.
+
+
+---
+
+## Phase 16 — Comprehensive Production-Readiness Audit & Fixes
+
+### Audit Methodology
+Three specialized subagents were spawned to perform a deep audit:
+1. **CTO/Architecture Auditor (AUDIT-ARCH-1)**: 42 findings (6 Critical, 14 High, 13 Medium, 9 Low)
+2. **Security Auditor (AUDIT-SEC-1)**: 17 findings (1 Critical, 5 High, 4 Medium, 7 Low)
+3. **Strict Code Reviewer (AUDIT-CODE-1)**: 44 TypeScript errors found via `tsc --noEmit`, 11 Critical, 22 High, 18 Medium
+
+### Critical Fixes Applied
+
+#### 1. Configuration Fixes (reported by junior dev team + audit)
+- **`next.config.ts`**: Removed `ignoreBuildErrors: true`, set `reactStrictMode: true`, added security headers (X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, Permissions-Policy), disabled `poweredByHeader`
+- **`package.json`**: Removed `--accept-data-loss` from default `db:push` (created `db:push:force` for dev-only), added `typecheck`, `db:seed`, `db:studio` scripts
+- **`tsconfig.json`**: Enabled `noImplicitAny: true`, `noUncheckedIndexedAccess: true`, `noFallthroughCasesInSwitch: true`, `noImplicitReturns: true`
+- **`eslint.config.mjs`**: Re-enabled 18 previously disabled rules (no-explicit-any → warn, no-unused-vars → warn, exhaustive-deps → warn, prefer-const → warn, no-debugger → error, no-unreachable → error, no-fallthrough → error, etc.)
+
+#### 2. Critical Security Fix — Session Token Forgery (AUDIT-SEC-1 Critical)
+- **`src/lib/auth.ts`**: Replaced forgeable base64 session tokens with **HMAC-SHA256 signed tokens** using a server secret (`SESSION_SECRET` env var). The old token was `base64url(userId.timestamp.random)` — anyone could forge a session for any user (including admins) by base64-encoding `<targetUserId>.0.x`. The new token format is `base64url(payload).base64url(signature)` where the signature is verified using `timingSafeEqual` to prevent timing attacks.
+- Added 30-day token expiry
+- Added `.env.example` with `SESSION_SECRET` documentation
+- Untracked `.env` from git (was committed despite being in .gitignore)
+
+#### 3. AI Tutor Authentication (AUDIT-ARCH-1 Critical, AUDIT-SEC-1 High)
+- **`src/app/api/ai/tutor/route.ts`**: Added `getSessionUser()` authentication check — was completely open to anonymous visitors who could burn LLM API credits. Also added message history limit (10 messages) to prevent token abuse.
+
+#### 4. Error Handling & Information Disclosure (AUDIT-ARCH-1 High)
+- **`src/lib/api/responses.ts`**: `apiHandler` now returns generic "Internal server error" in production instead of leaking raw `err.message` to clients. Full errors are still logged server-side.
+- Fixed `apiHandler` generic signature to preserve type inference for route handlers
+
+#### 5. Type Safety Fixes (AUDIT-CODE-1)
+- **`vocabulary-screen.tsx`**: Replaced `card: any` with proper `VocabCardData` interface
+- **`theme-store.ts`**: Added `cost: number` field to `CustomTheme` interface (was causing 5 TS errors in theme-preview-modal.tsx)
+- **`nav-store.ts`**: Exported `TabName` type (was imported but not exported)
+- **`lesson-screen.tsx`**: Fixed `setRewards` type mismatch (state expected `nextLessonId` that API doesn't return in rewards)
+- **`lesson-screen.tsx`**: Fixed `useGame.getState().hearts` in render → proper `useGame((s) => s.hearts)` subscription
+- **`admin/lessons` routes**: Replaced `z.any()` with proper exercise Zod schema (discriminated union with type validation)
+- **`vocabulary/categories` route**: Fixed non-null assertions with safe type casting
+
+#### 6. Database & Performance
+- **`src/lib/db.ts`**: Disabled Prisma query logging in production (was logging ALL queries with `log: ['query']`). Production now only logs `['error', 'warn']`.
+
+#### 7. Error Boundaries (AUDIT-ARCH-1 High)
+- **`src/app/error.tsx`**: Route-level error boundary with Bengali UI, retry button, dev-mode error message
+- **`src/app/global-error.tsx`**: Global error boundary for root layout errors (replaces entire `<html>` document)
+
+#### 8. Unused Imports & Code Cleanup
+- Removed unused `fail` imports from analytics, league-reset, search routes
+- Removed unused `verifyPassword` import from signup route
+- Removed unused `Zap` import from lesson-screen
+- Fixed `prefer-const` warnings in purchase route
+- Fixed mixed spaces/tabs in tailwind.config.ts
+
+### Lint Results
+- **Before**: 85 errors, 34 warnings (lint failed)
+- **After**: 0 errors, 32 warnings (lint passes — remaining warnings are minor unused vars in shadcn/ui components)
+
+### GitHub Version Control
+- Previous commit: `f8e6f8a` (Phase 15 — friends/social)
+- All Phase 16 audit fixes committed and pushed to `main` branch

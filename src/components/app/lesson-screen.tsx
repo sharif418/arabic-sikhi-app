@@ -10,7 +10,7 @@ import { useSpeech } from "@/hooks/use-speech";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Check, X, Volume2, Sparkles, Heart, Gem, Zap } from "lucide-react";
+import { Loader2, Check, X, Volume2, Sparkles, Heart, Gem } from "lucide-react";
 import { HeartIcon, GemIcon, XpIcon, StarIcon } from "@/components/icons/game-icons";
 import { cn } from "@/lib/utils";
 import type { Exercise } from "@/lib/types";
@@ -29,6 +29,7 @@ export function LessonScreen({ lessonId }: { lessonId: string }) {
   const [mistakes, setMistakes] = useState(0);
   const [selected, setSelected] = useState<boolean | null>(null);
   const { back } = useNav();
+  const hearts = useGame((s) => s.hearts);
 
   const exercises = data?.lesson.exercises ?? [];
   const current = exercises[index];
@@ -127,7 +128,7 @@ export function LessonScreen({ lessonId }: { lessonId: string }) {
         </div>
         <div className="flex items-center gap-1 text-destructive font-bold">
           <HeartIcon className="h-5 w-5" filled />
-          <span className="text-sm tabular-nums">{useGame.getState().hearts}</span>
+          <span className="text-sm tabular-nums">{hearts}</span>
         </div>
       </div>
 
@@ -833,7 +834,7 @@ function LessonComplete({
   const { recordLessonComplete } = useGame();
   const { setLocal, user } = useAuth();
   const [submitting, setSubmitting] = useState(true);
-  const [rewards, setRewards] = useState<{ xp: number; gems: number; stars: number; nextLessonId: string | null } | null>(null);
+  const [rewards, setRewards] = useState<{ xp: number; gems: number; stars: number } | null>(null);
 
   useEffect(() => {
     const score = Math.round((correctCount / total) * 100);

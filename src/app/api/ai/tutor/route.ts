@@ -1,6 +1,7 @@
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
 import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { getSessionUser } from "@/lib/session";
 
 const tutorSchema = z.object({
   messages: z.array(
@@ -31,11 +32,17 @@ const SYSTEM_PROMPT = `তুমি "আরবি শিখি" (Arabic Sikhi) �
 মনে রেখো — শিক্ষার্থীরা শুরুর দিকে থাকতে পারে, তাই খুব জটিল ব্যাকরণ এড়িয়ে যাও।`;
 
 export const POST = apiHandler(async (req) => {
+  // Require authentication — prevents anonymous LLM credit abuse
+  const session = await getSessionUser();
+  if (!session) return fail("Not authenticated", 401);
+
   const body = await req.json().catch(() => null);
   const parsed = tutorSchema.safeParse(body);
   if (!parsed.success) return fail("Invalid payload", 422, parsed.error.flatten());
 
-  const { messages, context } = parsed.data;
+  // Limit message history to prevent token abuse
+  const recentMessages = parsed.data.messages.slice(-10);
+  const { context } = parsed.data;
 
   const contextNote = context?.level
     ? `\n\nশিক্ষার্থীর বর্তমান লেভেল: ${context.level}। ${context.currentLesson ? `বর্তমান লেসন: ${context.currentLesson}।` : ""}`
@@ -46,7 +53,7 @@ export const POST = apiHandler(async (req) => {
   const completion = await zai.chat.completions.create({
     messages: [
       { role: "assistant", content: SYSTEM_PROMPT + contextNote },
-      ...messages,
+      ...recentMessages,
     ],
     thinking: { type: "disabled" },
   });

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
-import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { apiHandler, ok } from "@/lib/api/responses";
 
 /**
  * Search lessons by name (Bengali or English) across all courses.

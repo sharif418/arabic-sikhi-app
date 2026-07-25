@@ -31,13 +31,16 @@ export const GET = apiHandler(async () => {
   }
 
   const categories = categoryTotals
-    .filter((c) => c.category) // exclude null/empty
-    .map((c) => ({
-      category: c.category,
-      total: c._count,
-      learned: learnedByCategory.get(c.category!) ?? 0,
-      pct: c._count > 0 ? Math.round(((learnedByCategory.get(c.category!) ?? 0) / c._count) * 100) : 0,
-    }));
+    .filter((c) => c.category !== null && c.category !== "") // exclude null/empty
+    .map((c) => {
+      const cat = c.category as string;
+      return {
+        category: cat,
+        total: c._count,
+        learned: learnedByCategory.get(cat) ?? 0,
+        pct: c._count > 0 ? Math.round(((learnedByCategory.get(cat) ?? 0) / c._count) * 100) : 0,
+      };
+    });
 
   const totalWords = categories.reduce((s, c) => s + c.total, 0);
   const totalLearned = categories.reduce((s, c) => s + c.learned, 0);

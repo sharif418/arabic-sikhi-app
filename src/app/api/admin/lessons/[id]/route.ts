@@ -11,7 +11,13 @@ const updateLessonSchema = z.object({
   xpReward: z.number().int().min(0).optional(),
   gemReward: z.number().int().min(0).optional(),
   icon: z.string().optional(),
-  exercises: z.array(z.any()).optional(),
+  exercises: z.array(
+    z.object({
+      type: z.enum(["multiple-choice", "match-pairs", "build-sentence", "fill-blank", "listen-choose", "translate"]),
+      prompt: z.string(),
+      promptBn: z.string().optional(),
+    }).passthrough()
+  ).optional(),
   order: z.number().int().min(0).optional(),
 });
 
