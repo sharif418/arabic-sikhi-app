@@ -8,6 +8,7 @@ import { Moon, Sun, Heart, Target, Bell, Globe, Info, Shield, ChevronRight, Volu
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useNotifications } from "@/hooks/use-notifications";
 
 export function SettingsScreen() {
   const { back } = useNav();
@@ -143,8 +144,7 @@ export function SettingsScreen() {
 
 /* ---------- Reminder Time Row ---------- */
 function ReminderTimeRow() {
-  const [reminderTime, setReminderTime] = useState("19:00");
-  const [enabled, setEnabled] = useState(false);
+  const { supported, permission, enabled, reminderTime, setReminder, setReminderTime } = useNotifications();
 
   const times = [
     { value: "06:00", label: "সকাল ৬টা" },
@@ -157,18 +157,51 @@ function ReminderTimeRow() {
 
   const currentLabel = times.find((t) => t.value === reminderTime)?.label ?? reminderTime;
 
+  // If notifications aren't supported, show a disabled state
+  if (!supported) {
+    return (
+      <div className="flex items-center gap-3 px-3.5 py-3 opacity-60">
+        <span className="text-muted-foreground">
+          <Clock className="h-4 w-4" />
+        </span>
+        <div className="flex-1">
+          <p className="font-bengali text-sm font-semibold">রিমাইন্ডার সময়</p>
+          <p className="font-bengali text-[10px] text-muted-foreground mt-0.5">এই ব্রাউজারে সমর্থিত নয়</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleToggle = async (v: boolean) => {
+    if (v) {
+      const ok = await setReminder(true, reminderTime);
+      if (ok) {
+        toast.success(`রিমাইন্ডার চালু হয়েছে · প্রতিদিন ${currentLabel}`);
+      } else {
+        toast.error("বিজ্ঞপ্তি অনুমতি প্রয়োজন। ব্রাউজার সেটিংসে অনুমতি দিন।");
+      }
+    } else {
+      await setReminder(false, reminderTime);
+      toast.info("রিমাইন্ডার বন্ধ করা হয়েছে");
+    }
+  };
+
   return (
     <div className="flex items-center gap-3 px-3.5 py-3">
-      <span className="text-muted-foreground">
+      <span className={cn("transition-colors", enabled ? "text-primary" : "text-muted-foreground")}>
         <Clock className="h-4 w-4" />
       </span>
       <div className="flex-1">
         <p className="font-bengali text-sm font-semibold">রিমাইন্ডার সময়</p>
         <p className="font-bengali text-[10px] text-muted-foreground mt-0.5">
-          {enabled ? `প্রতিদিন ${currentLabel} এ মনে করিয়ে দেবে` : "বন্ধ আছে"}
+          {enabled
+            ? permission === "granted"
+              ? `প্রতিদিন ${currentLabel} এ বিজ্ঞপ্তি পাবেন`
+              : "বিজ্ঞপ্তি অনুমতি প্রয়োজন"
+            : "বন্ধ আছে"}
         </p>
       </div>
-      {enabled && (
+      {enabled && permission === "granted" && (
         <select
           value={reminderTime}
           onChange={(e) => {
@@ -183,11 +216,7 @@ function ReminderTimeRow() {
           ))}
         </select>
       )}
-      <ToggleSwitch on={enabled} onToggle={(v) => {
-        setEnabled(v);
-        if (v) toast.success("রিমাইন্ডার চালু হয়েছে");
-        else toast.info("রিমাইন্ডার বন্ধ করা হয়েছে");
-      }} />
+      <ToggleSwitch on={enabled} onToggle={handleToggle} />
     </div>
   );
 }

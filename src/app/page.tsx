@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/stores/auth-store";
 import { useNav } from "@/lib/stores/nav-store";
 import { useGame } from "@/lib/stores/game-store";
 import { ScreenRouter } from "@/components/app/screen-router";
+import { StreakMilestoneWatcher } from "@/components/app/streak-milestone-watcher";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -75,6 +76,7 @@ export default function Home() {
   return (
     <div className="relative mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-background shadow-2xl md:my-0">
       <ScreenRouter />
+      {user && <StreakMilestoneWatcher streak={user.streak} />}
     </div>
   );
 }

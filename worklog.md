@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 10 complete — Lesson search (API + screen) + reminder time picker in settings, all verified**
+**Status: ✅ Phase 11 complete — Browser notification scheduling + streak milestone celebrations (7 milestones), all verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -771,4 +771,78 @@ Made the `ToggleSwitch` component support both controlled and uncontrolled modes
 3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
 4. **Friends/social features** — follow other learners, see their progress
 5. **Notification scheduling** — actually schedule browser notifications at reminder time
+6. **Lesson content search** — search within lesson exercises (not just titles)
+
+---
+
+## Phase 11 (Cron Review Round 10) — Notification Scheduling + Streak Milestones
+
+### QA Methodology
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 8 achievements
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Notification Scheduling Hook (`src/hooks/use-notifications.ts`)
+New hook that manages browser notifications at a scheduled reminder time:
+- **Permission management**: requests `Notification.requestPermission()`, tracks `default`/`granted`/`denied` status
+- **Config persistence**: saves `{enabled, time, lastShown}` to localStorage (`arabic-sikhi-reminder`)
+- **Scheduled checking**: checks every minute if current time ≥ reminder time; shows a notification once per day
+- **Notification content**: "আরবি শিখি 🔥" title, "আজকের লেসন সম্পন্ন করুন! আপনার স্ট্রিক ধরে রাখুন।" body, app icon
+- **API**: `setReminder(enabled, time)`, `setReminderTime(time)`, `requestPermission()`
+- Graceful fallback for unsupported browsers
+
+#### 2. Settings Reminder Time Upgrade
+The `ReminderTimeRow` in settings now uses the real `useNotifications` hook:
+- Shows "এই ব্রাউজারে সমর্থিত নয়" if notifications aren't supported
+- Requests permission when toggling on; shows error toast if denied
+- Shows contextual subtitle: "প্রতিদিন {time} এ বিজ্ঞপ্তি পাবেন" (granted) or "বিজ্ঞপ্তি অনুমতি প্রয়োজন" (not granted)
+- Time picker dropdown only shown when enabled + permission granted
+- Clock icon turns primary color when enabled
+
+#### 3. Notification Permission Nudge (Home Screen)
+New dismissible banner on the home screen:
+- Appears when notifications are supported but not yet enabled/granted
+- Amber-themed card with 🔔 icon, "রিমাইন্ডার চালু করুন" title, "প্রতিদিন মনে করিয়ে দেবে লেসন করতে" subtitle
+- "চালু করুন" button (emerald gradient) that requests permission
+- X dismiss button (hides for the session)
+- Auto-hides if permission is granted or denied
+- Animated entrance (opacity + height)
+
+#### 4. Streak Milestone Celebrations (`src/components/app/streak-milestone-watcher.tsx`)
+New component that watches the user's streak and shows celebratory toasts when milestones are hit:
+- **7 milestones**: 3 (🌱), 7 (🔥), 14 (⚡), 30 (💎), 60 (🏆), 100 (👑), 365 (🌟) days
+- **Rich toast design**: gold-to-orange gradient card with border, glow shadow, spring-animated emoji entrance
+- **Bengali messages**: e.g., "৭ দিনের স্ট্রিক!" / "এক পূর্ণ সপ্তাহ! আপনি অসাধারণ।"
+- **6-second duration** for maximum visibility
+- **Idempotent**: uses a ref to track shown milestones, so each milestone only fires once per session
+- Only triggers when streak increases (not on initial load)
+- Integrated into `page.tsx` — renders globally for all logged-in users
+
+Verified milestone logic via script:
+- 6 → 7: triggers 🌱 (3-day) + 🔥 (7-day)
+- 7 → 8: triggers nothing (correct)
+- 8 → 30: triggers ⚡ (14-day) + 💎 (30-day)
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Notification hook: lazy localStorage init (no setState-in-effect), permission tracking, scheduled checking
+- ✅ Streak milestone logic: verified 7 milestones fire correctly, idempotent, only on increase
+- ✅ Settings reminder row: real permission flow with error handling
+- ✅ Notification nudge: dismissible, auto-hides on grant/deny
+
+### Architecture
+- `src/hooks/use-notifications.ts` — notification scheduling hook with localStorage persistence
+- `src/components/app/streak-milestone-watcher.tsx` — milestone celebration toasts
+- `src/components/app/home-screen.tsx` — added NotificationNudge component
+- `src/components/app/settings-screen.tsx` — ReminderTimeRow now uses real useNotifications hook
+- `src/app/page.tsx` — globally renders StreakMilestoneWatcher for logged-in users
+
+### Recommended Next Focus (Phase 12)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Friends/social features** — follow other learners, see their progress
+5. **Custom theme application** — actually apply purchased themes (gold/rose/midnight) from shop
 6. **Lesson content search** — search within lesson exercises (not just titles)

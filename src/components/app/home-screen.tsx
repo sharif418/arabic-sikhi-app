@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CourseSummary, CourseLesson } from "@/lib/types";
 import { useState } from "react";
-import { Sparkles, Bot, ChevronRight, Volume2, Calendar, Search } from "lucide-react";
+import { Sparkles, Bot, ChevronRight, Volume2, Calendar, Search, X } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
+import { useNotifications } from "@/hooks/use-notifications";
 
 export function HomeScreen() {
   const { data, isLoading } = useQuery({ queryKey: ["courses"], queryFn: api.courses.list });
@@ -52,6 +53,9 @@ export function HomeScreen() {
           <Search className="h-5 w-5 text-muted-foreground" />
         </button>
       </div>
+
+      {/* Notification permission nudge (dismissible) */}
+      <NotificationNudge />
 
       {/* Word of the Day */}
       <DailyWord />
@@ -108,6 +112,50 @@ function CourseChip({
         </span>
       </div>
     </button>
+  );
+}
+
+/* ---------- Notification Permission Nudge ---------- */
+function NotificationNudge() {
+  const { supported, permission, enabled, requestPermission } = useNotifications();
+  const [dismissed, setDismissed] = useState(false);
+
+  // Don't show if not supported, already enabled, already granted, or dismissed
+  if (!supported || enabled || permission === "granted" || permission === "denied" || dismissed) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      className="px-4 pb-2"
+    >
+      <div className="flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-2.5">
+        <span className="text-lg shrink-0">🔔</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-bengali text-[11px] font-bold text-amber-600 dark:text-amber-400">রিমাইন্ডার চালু করুন</p>
+          <p className="font-bengali text-[10px] text-muted-foreground truncate">প্রতিদিন মনে করিয়ে দেবে লেসন করতে</p>
+        </div>
+        <button
+          onClick={async () => {
+            const ok = await requestPermission();
+            if (ok) setDismissed(true);
+          }}
+          className="shrink-0 rounded-full gradient-emerald text-primary-foreground px-2.5 py-1 text-[10px] font-bold tap-scale"
+        >
+          চালু করুন
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="shrink-0 text-muted-foreground hover:text-foreground tap-scale p-0.5"
+          aria-label="dismiss"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
