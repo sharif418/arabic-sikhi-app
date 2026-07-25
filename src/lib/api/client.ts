@@ -188,6 +188,43 @@ export const api = {
       promotionZone: string[];
       demotionZone: string[];
     }>(`/api/leaderboard${league ? `?league=${league}` : ""}`),
+  friends: {
+    list: () =>
+      request<{
+        following: Array<{
+          id: string;
+          name: string;
+          league: string;
+          streak: number;
+          level: number;
+          totalXp: number;
+          avatar: string | null;
+          lastActiveDate: string | null;
+          followedAt: string;
+        }>;
+        followersCount: number;
+        followingCount: number;
+      }>("/api/friends"),
+    suggestions: (q?: string) =>
+      request<{
+        suggestions: Array<{
+          id: string;
+          name: string;
+          league: string;
+          streak: number;
+          level: number;
+          totalXp: number;
+          avatar: string | null;
+          lastActiveDate: string | null;
+          followersCount: number;
+        }>;
+      }>(`/api/friends/suggestions${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+    toggle: (targetUserId: string) =>
+      request<{ following: boolean; targetName: string }>("/api/friends/toggle", {
+        method: "POST",
+        body: JSON.stringify({ targetUserId }),
+      }),
+  },
   userStats: () =>
     request<{
       user: SessionUser;

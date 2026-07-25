@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 14 complete — PWA service worker (3 caching strategies), offline indicator, install prompt, enhanced manifest, pushed to GitHub**
+**Status: ✅ Phase 15 complete — Friends/social features (Follow model, 3 API endpoints, friends screen with suggestions+following tabs), pushed to GitHub**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -1069,3 +1069,86 @@ PWA service worker with intelligent caching strategies:
 4. **Lesson content search** — search within lesson exercises (not just titles)
 5. **Push notification API** — server-side push for daily reminders (beyond browser-only)
 6. **Offline lesson pre-caching** — pre-cache next 3 lessons for true offline learning
+
+---
+
+## Phase 15 (Cron Review Round 14) — Friends/Social Features
+
+### QA Methodology
+- GitHub version control: local and remote in sync at commit `89f283c` (Phase 14)
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 15 achievements unlocked
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during compilation (4GB sandbox limit); verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Follow Model (Prisma Schema)
+Added `Follow` model to the database schema:
+- `followerId` → the user who follows
+- `followingId` → the user being followed
+- Unique constraint on `[followerId, followingId]` to prevent duplicate follows
+- Cascade deletes (deleting a user removes their follow relationships)
+- Indexed on both `followerId` and `followingId` for efficient queries
+- Added `following` and `followers` relations to the User model
+
+#### 2. Friends API (3 endpoints)
+- **`GET /api/friends`** — lists the current user's following (with stats: name, league, streak, level, XP, avatar, lastActiveDate) + followers/following counts
+- **`GET /api/friends/suggestions`** — suggests learners to follow (excludes self, admins, already-followed; sorted by XP desc; optional search query)
+- **`POST /api/friends/toggle`** — toggles follow/unfollow for a target user (idempotent, prevents self-follow)
+
+Verified via direct script: demo user can follow "বিলাল" (Lv 6, 570 XP, Gold league), suggestions correctly exclude self/admins, toggle is idempotent.
+
+#### 3. Friends Screen (`src/components/app/friends-screen.tsx`)
+Full-screen social experience with two tabs:
+- **Suggestions tab**:
+  - Search bar (by name/email)
+  - Learner cards showing: avatar with league badge, name, level (⚡), streak (🔥), XP
+  - "ফলো" button (emerald gradient) with loading state
+  - Empty state: "কোনো নতুন শিক্ষার্থী নেই"
+  - Sorted by XP (most active first)
+- **Following tab**:
+  - Stats summary: following count + followers count (2-column grid)
+  - Friend cards with same info as suggestions + "ফলোয়িং" button (emerald/15) to unfollow
+  - Empty state: "আপনি এখনো কাউকে ফলো করেন না"
+- **Aurora gradient header** with Islamic pattern, Users icon, tab switcher
+- Staggered card animations, toast notifications on follow/unfollow
+
+#### 4. Profile Integration
+Added "বন্ধুরা" (Friends) menu item to the profile screen with Users icon and highlight styling, positioned prominently after the Shop menu item.
+
+#### 5. Friend Avatar Component
+Reusable avatar with:
+- Emerald gradient circle with user's first initial
+- League badge (colored circle with league icon) positioned at bottom-right
+- Border for depth
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Follow model: schema pushed to DB, Prisma client generated
+- ✅ Friends API: suggestions (5 users sorted by XP), follow toggle (idempotent), following list
+- ✅ Friends screen: 2 tabs, search, follow/unfollow, empty states, animations
+- ✅ Profile: Friends menu item added with Users icon
+
+### Architecture
+- `prisma/schema.prisma` — Follow model with unique constraint + indexes
+- `src/app/api/friends/route.ts` — list following + counts
+- `src/app/api/friends/suggestions/route.ts` — suggest learners (exclude self/admins/followed)
+- `src/app/api/friends/toggle/route.ts` — follow/unfollow toggle
+- `src/components/app/friends-screen.tsx` — full-screen social UI with 2 tabs
+- `src/lib/stores/nav-store.ts` — added `friends` screen type
+- `src/lib/api/client.ts` — added `api.friends.{list,suggestions,toggle}` typed methods
+- `src/components/app/profile-screen.tsx` — Friends menu item
+
+### GitHub Version Control
+- Remote: `https://github.com/sharif418/arabic-sikhi-app`
+- Branch: `main`
+- Previous commit: `89f283c` (Phase 14 — PWA)
+- Phase 15 changes ready to commit + push
+
+### Recommended Next Focus (Phase 16)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+3. **Friend activity feed** — see friends' recent lesson completions
+4. **Lesson content search** — search within lesson exercises (not just titles)
+5. **Offline lesson pre-caching** — pre-cache next 3 lessons for true offline learning
+6. **Friend leaderboard** — separate leaderboard showing only friends

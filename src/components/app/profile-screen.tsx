@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import {
   LogOut, Settings, Flame, Star, BookOpen,
-  Award, ChevronRight, Bot, Shield, Moon, Sun, Crown, Zap, Gem, ShoppingBag
+  Award, ChevronRight, Bot, Shield, Moon, Sun, Crown, Zap, Gem, ShoppingBag, Users
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -159,6 +159,7 @@ export function ProfileScreen() {
       {/* Menu */}
       <div className="px-4 mt-4 space-y-1.5">
         <MenuItem icon={<ShoppingBag className="h-4 w-4" />} label="দোকান" onClick={() => navigate({ name: "shop" })} highlight />
+        <MenuItem icon={<Users className="h-4 w-4" />} label="বন্ধুরা" onClick={() => navigate({ name: "friends" })} highlight />
         <MenuItem icon={<Bot className="h-4 w-4" />} label="AI শিক্ষক" onClick={() => navigate({ name: "ai-tutor" })} />
         <MenuItem
           icon={theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

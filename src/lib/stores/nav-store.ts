@@ -10,6 +10,7 @@ export type Screen =
   | { name: "vocabulary" }
   | { name: "vocab-deck"; deckId?: string }
   | { name: "dictionary" }
+  | { name: "friends" }
   | { name: "search" }
   | { name: "leaderboard" }
   | { name: "profile" }

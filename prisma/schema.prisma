@@ -38,6 +38,24 @@ model User {
   vocabReviews  UserVocabulary[]
   achievements  UserAchievement[]
   leaderboard   LeaderboardEntry?
+  following     Follow[]      @relation("Follower")
+  followers     Follow[]      @relation("Following")
+}
+
+// ============ SOCIAL (Follow relationships) ============
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   // the user who follows
+  followingId String   // the user being followed
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
 // ============ COURSE STRUCTURE ============
