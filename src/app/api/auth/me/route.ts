@@ -22,6 +22,7 @@ export const GET = apiHandler(async () => {
       lastActiveDate: true,
       league: true,
       hearts: true,
+      streakFreezes: true,
     },
   });
 

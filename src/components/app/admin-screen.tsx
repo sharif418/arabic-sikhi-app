@@ -5,17 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { useNav } from "@/lib/stores/nav-store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, BookOpen, Brain, Award, Calendar, Activity, BarChart3, Library, UserCog } from "lucide-react";
+import { Users, BookOpen, Brain, Award, Calendar, Activity, BarChart3, Library, UserCog, LineChart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AdminVocabulary } from "./admin-vocabulary";
 import { AdminLessons } from "./admin-lessons";
 import { AdminUsers } from "./admin-users";
+import { AdminAnalytics } from "./admin-analytics";
 
-type Tab = "overview" | "vocabulary" | "lessons" | "users";
+type Tab = "overview" | "analytics" | "vocabulary" | "lessons" | "users";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "ওভারভিউ", icon: <BarChart3 className="h-3.5 w-3.5" /> },
+  { id: "analytics", label: "অ্যানালিটিক্স", icon: <LineChart className="h-3.5 w-3.5" /> },
   { id: "vocabulary", label: "শব্দভান্ডার", icon: <Library className="h-3.5 w-3.5" /> },
   { id: "lessons", label: "লেসন", icon: <BookOpen className="h-3.5 w-3.5" /> },
   { id: "users", label: "ব্যবহারকারী", icon: <UserCog className="h-3.5 w-3.5" /> },
@@ -77,6 +79,11 @@ export function AdminScreen() {
             className="h-full"
           >
             {tab === "overview" && <AdminOverview />}
+            {tab === "analytics" && (
+              <div className="h-full overflow-y-auto premium-scroll p-4">
+                <AdminAnalytics />
+              </div>
+            )}
             {tab === "vocabulary" && <AdminVocabulary />}
             {tab === "lessons" && <AdminLessons />}
             {tab === "users" && <AdminUsers />}

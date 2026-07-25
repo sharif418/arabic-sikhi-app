@@ -107,4 +107,5 @@ export type SessionUser = {
   lastActiveDate?: string | null;
   league: string;
   hearts: number;
+  streakFreezes?: number;
 };

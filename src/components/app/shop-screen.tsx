@@ -51,25 +51,40 @@ export function ShopScreen() {
   };
 
   const buyStreakFreeze = async () => {
-    const ok = spendGems(50);
-    if (ok) {
-      toast.success("🧊 স্ট্রিক ফ্রিজ সক্রিয়! আগামীকাল একদিন নিরাপদ।");
+    try {
+      const res = await fetch("/api/user/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: "streak-freeze" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      spendGems(50); // sync local
+      toast.success(`🧊 স্ট্রিক ফ্রিজ কেনা হয়েছে! (মোট: ${data.streakFreezes})`);
       return true;
+    } catch (e) {
+      toast.error((e as Error).message);
+      return false;
     }
-    toast.error("পর্যাপ্ত রত্ন নেই");
-    return false;
   };
 
   const buyXpBoost = async () => {
-    const ok = spendGems(40);
-    if (ok) {
-      // grant a flat XP boost
+    try {
+      const res = await fetch("/api/user/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: "xp-boost" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      spendGems(40);
       setLocal({ totalXp: (user?.totalXp ?? 0) + 25, xp: (user?.xp ?? 0) + 25 });
       toast.success("⚡ ২৫ XP বোনাস যোগ হয়েছে!");
       return true;
+    } catch (e) {
+      toast.error((e as Error).message);
+      return false;
     }
-    toast.error("পর্যাপ্ত রত্ন নেই");
-    return false;
   };
 
   const buyHeartMax = async () => {
@@ -271,6 +286,13 @@ export function ShopScreen() {
               {item.owned && (
                 <div className="absolute top-2 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full gradient-emerald text-white">
                   <Check className="h-3 w-3" />
+                </div>
+              )}
+              {/* Streak freeze count badge */}
+              {item.id === "streak-freeze" && (user?.streakFreezes ?? 0) > 0 && (
+                <div className="absolute top-2 left-2 z-10 flex items-center gap-0.5 rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-bold text-cyan-600 dark:text-cyan-400">
+                  <Snowflake className="h-2.5 w-2.5" />
+                  {user?.streakFreezes}
                 </div>
               )}
               <div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl mb-2", item.bg)}>

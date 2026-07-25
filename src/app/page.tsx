@@ -6,6 +6,7 @@ import { useNav } from "@/lib/stores/nav-store";
 import { useGame } from "@/lib/stores/game-store";
 import { ScreenRouter } from "@/components/app/screen-router";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Home() {
   const { user, loading, refresh } = useAuth();
@@ -18,9 +19,25 @@ export default function Home() {
     refresh();
   }, [refresh]);
 
-  // When user logs in, hydrate game store + jump to home
+  // When user logs in: run streak safeguard, hydrate game store, jump to home
   useEffect(() => {
     if (user) {
+      // Check streak status (auto-consume freeze or reset)
+      fetch("/api/user/streak-check", { method: "POST" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.freezeConsumed) {
+            toast.success(`🧊 স্ট্রিক ফ্রিজ ব্যবহৃত হয়েছে! আপনার ${data.streak} দিনের স্ট্রিক বেঁচে গেছে।`, { duration: 6000 });
+          } else if (data.streakReset) {
+            toast.error(`💔 আপনার স্ট্রিক রিসেট হয়েছে। আবার নতুন করে শুরু করুন!`, { duration: 6000 });
+          }
+          if (data.streak !== undefined && data.streak !== user.streak) {
+            // Refresh user data if streak changed
+            refresh();
+          }
+        })
+        .catch(() => {/* silent */});
+
       hydrateFromServer({
         hearts: user.hearts,
         gems: user.gems,
@@ -35,7 +52,7 @@ export default function Home() {
         useNav.getState().resetTo({ name: "home" });
       }
     }
-  }, [user, currentScreen.name, hydrateFromServer]);
+  }, [user?.id, user?.streak, currentScreen.name, hydrateFromServer, refresh]);
 
   // Splash / loading state
   if (loading && !user) {

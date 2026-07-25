@@ -144,23 +144,28 @@ function DailyGoalBanner() {
         )}
       </div>
 
-      {/* Quick actions: Shop + Practice */}
+      {/* Quick actions: Shop + Practice — consistent card style */}
       <div className="grid grid-cols-2 gap-2.5">
         <button
           onClick={() => navigate({ name: "shop" })}
-          className="flex items-center gap-2 rounded-2xl gradient-gold text-white p-3 shadow-glow-gold tap-scale"
+          className="relative flex items-center gap-2.5 rounded-2xl gradient-gold text-white p-3 shadow-glow-gold tap-scale overflow-hidden"
         >
-          <span className="text-xl">🛍️</span>
-          <div className="text-left flex-1 min-w-0">
+          <div className="absolute inset-0 opacity-20 pattern-islamic" />
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/25 backdrop-blur">
+            <span className="text-lg">🛍️</span>
+          </div>
+          <div className="relative text-left flex-1 min-w-0">
             <p className="font-bengali text-xs font-bold leading-tight">দোকান</p>
-            <p className="text-[9px] text-white/80 truncate">💎 {gems} রত্ন</p>
+            <p className="text-[9px] text-white/90 truncate font-semibold">💎 {gems} রত্ন</p>
           </div>
         </button>
         <button
           onClick={() => navigate({ name: "vocabulary" })}
-          className="flex items-center gap-2 rounded-2xl glass border border-border/50 p-3 shadow-soft tap-scale"
+          className="relative flex items-center gap-2.5 rounded-2xl glass border border-border/50 p-3 shadow-soft tap-scale overflow-hidden"
         >
-          <span className="text-xl">📖</span>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl gradient-emerald text-white">
+            <span className="text-lg">📖</span>
+          </div>
           <div className="text-left flex-1 min-w-0">
             <p className="font-bengali text-xs font-bold leading-tight">অনুশীলন</p>
             <p className="text-[9px] text-muted-foreground truncate">শব্দ পর্যালোচনা</p>

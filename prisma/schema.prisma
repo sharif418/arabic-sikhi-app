@@ -31,6 +31,7 @@ model User {
   streak        Int      @default(0)
   lastActiveDate String? // YYYY-MM-DD
   league        String   @default("Bronze")
+  streakFreezes Int      @default(0) // purchased freezes available to auto-consume
 
   // Relations
   progress      UserProgress[]
