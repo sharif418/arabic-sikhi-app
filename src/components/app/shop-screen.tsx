@@ -3,6 +3,7 @@
 import { useNav } from "@/lib/stores/nav-store";
 import { useGame } from "@/lib/stores/game-store";
 import { useAuth } from "@/lib/stores/auth-store";
+import { useThemeStore, THEMES, type ThemeId } from "@/lib/stores/theme-store";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ export function ShopScreen() {
   const { back } = useNav();
   const { gems, hearts, maxHearts, spendGems, refillHearts, streak } = useGame();
   const { setLocal, user } = useAuth();
+  const { active: activeTheme, owned: ownedThemes, setTheme, ownTheme } = useThemeStore();
   const [category, setCategory] = useState<"powerups" | "themes">("powerups");
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
@@ -158,63 +160,63 @@ export function ShopScreen() {
     },
   ];
 
-  const themes: ShopItem[] = [
-    {
-      id: "theme-emerald",
-      name: "Emerald Night",
-      nameBn: "এমেরাল্ড নাইট",
-      desc: "Default premium theme",
-      descBn: "ডিফল্ট প্রিমিয়াম থিম",
-      cost: 0,
-      icon: <Sparkles className="h-7 w-7 text-emerald-500" />,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
-      category: "themes",
-      action: async () => { toast.success("থিম প্রয়োগ হয়েছে"); return true; },
-      owned: true,
-    },
-    {
-      id: "theme-gold",
-      name: "Royal Gold",
-      nameBn: "রয়্যাল গোল্ড",
-      desc: "Luxurious gold accents",
-      descBn: "বিলাসী স্বর্ণ অলংকার",
-      cost: 80,
-      icon: <Crown className="h-7 w-7 text-amber-500" />,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
-      category: "themes",
-      action: async () => { toast.success("👑 রয়্যাল গোল্ড থিম আনলক হয়েছে!"); return true; },
-    },
-    {
-      id: "theme-rose",
-      name: "Rose Dawn",
-      nameBn: "রোজ ডন",
-      desc: "Soft rose dawn gradient",
-      descBn: "কোমল গোলাপী ভোর গ্রেডিয়েন্ট",
-      cost: 80,
-      icon: <Palette className="h-7 w-7 text-pink-500" />,
-      color: "text-pink-500",
-      bg: "bg-pink-500/10",
-      category: "themes",
-      action: async () => { toast.success("🌸 রোজ ডন থিম আনলক হয়েছে!"); return true; },
-    },
-    {
-      id: "theme-midnight",
-      name: "Midnight Mosque",
-      nameBn: "মিডনাইট মসজিদ",
-      desc: "Deep midnight blue with gold",
-      descBn: "গভীর মিডনাইট ব্লু ও স্বর্ণ",
-      cost: 100,
-      icon: <Sparkles className="h-7 w-7 text-indigo-400" />,
-      color: "text-indigo-400",
-      bg: "bg-indigo-500/10",
-      category: "themes",
-      action: async () => { toast.success("🕌 মিডনাইট মসজিদ থিম আনলক হয়েছে!"); return true; },
-    },
+  const themeItems: Array<{
+    themeId: ThemeId;
+    cost: number;
+    icon: React.ReactNode;
+    color: string;
+    bg: string;
+  }> = [
+    { themeId: "emerald", cost: 0, icon: <Sparkles className="h-7 w-7 text-emerald-500" />, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+    { themeId: "gold", cost: 80, icon: <Crown className="h-7 w-7 text-amber-500" />, color: "text-amber-500", bg: "bg-amber-500/10" },
+    { themeId: "rose", cost: 80, icon: <Palette className="h-7 w-7 text-pink-500" />, color: "text-pink-500", bg: "bg-pink-500/10" },
+    { themeId: "midnight", cost: 100, icon: <Sparkles className="h-7 w-7 text-indigo-400" />, color: "text-indigo-400", bg: "bg-indigo-500/10" },
   ];
 
-  const items = category === "powerups" ? powerups : themes;
+  const handleThemeAction = async (themeId: ThemeId, cost: number): Promise<boolean> => {
+    const theme = THEMES[themeId];
+    const isOwned = ownedThemes.includes(themeId);
+
+    // If already owned, just apply it
+    if (isOwned) {
+      setTheme(themeId);
+      toast.success(`${theme.icon} ${theme.nameBn} থিম প্রয়োগ হয়েছে!`);
+      return true;
+    }
+
+    // Otherwise, purchase it
+    if (cost === 0) {
+      ownTheme(themeId);
+      setTheme(themeId);
+      toast.success(`${theme.icon} ${theme.nameBn} থিম প্রয়োগ হয়েছে!`);
+      return true;
+    }
+
+    const ok = spendGems(cost);
+    if (ok) {
+      ownTheme(themeId);
+      setTheme(themeId);
+      toast.success(`${theme.icon} ${theme.nameBn} থিম আনলক ও প্রয়োগ হয়েছে!`);
+      return true;
+    }
+    toast.error("পর্যাপ্ত রত্ন নেই");
+    return false;
+  };
+
+  const items = category === "powerups" ? powerups : themeItems.map((t) => ({
+    id: `theme-${t.themeId}`,
+    name: THEMES[t.themeId].name,
+    nameBn: THEMES[t.themeId].nameBn,
+    desc: "",
+    descBn: THEMES[t.themeId].nameBn,
+    cost: t.cost,
+    icon: t.icon,
+    color: t.color,
+    bg: t.bg,
+    category: "themes" as const,
+    action: () => handleThemeAction(t.themeId, t.cost),
+    owned: ownedThemes.includes(t.themeId),
+  }));
 
   const handleBuy = async (item: ShopItem) => {
     setPurchasing(item.id);
@@ -295,8 +297,15 @@ export function ShopScreen() {
                   {user?.streakFreezes}
                 </div>
               )}
-              <div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl mb-2", item.bg)}>
+              <div className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl mb-2", item.bg)}>
                 {item.icon}
+                {/* Color swatch preview for themes */}
+                {category === "themes" && (
+                  <div
+                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-background shadow-soft"
+                    style={{ backgroundColor: THEMES[item.id.replace("theme-", "") as ThemeId]?.primary }}
+                  />
+                )}
               </div>
               <p className="font-bengali text-sm font-bold leading-tight">{item.nameBn}</p>
               <p className="font-bengali text-[10px] text-muted-foreground mt-0.5 leading-tight mb-3 line-clamp-2">
@@ -304,17 +313,23 @@ export function ShopScreen() {
               </p>
               <Button
                 onClick={() => handleBuy(item)}
-                disabled={!!item.owned || item.maxedOut || purchasing === item.id}
+                disabled={purchasing === item.id || (category === "themes" && activeTheme === (item.id.replace("theme-", "") as ThemeId))}
                 className={cn(
                   "mt-auto w-full h-9 font-bold rounded-xl tap-scale text-xs",
-                  item.owned
+                  category === "themes" && activeTheme === (item.id.replace("theme-", "") as ThemeId)
                     ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : item.owned
+                    ? "bg-primary/10 text-primary"
                     : item.maxedOut
                     ? "bg-muted text-muted-foreground"
                     : "gradient-gold text-white shadow-soft"
                 )}
               >
-                {item.owned ? (
+                {category === "themes" && activeTheme === (item.id.replace("theme-", "") as ThemeId) ? (
+                  <><Check className="h-3.5 w-3.5 mr-1" /> সক্রিয়</>
+                ) : category === "themes" && item.owned ? (
+                  <><Check className="h-3.5 w-3.5 mr-1" /> প্রয়োগ করুন</>
+                ) : item.owned ? (
                   <><Check className="h-3.5 w-3.5 mr-1" /> আনলকড</>
                 ) : item.maxedOut ? (
                   "সর্বোচ্চ"

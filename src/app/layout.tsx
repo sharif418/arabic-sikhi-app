@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import { ThemeApplier } from "@/components/app/theme-applier";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -72,7 +73,10 @@ export default function RootLayout({
       <body
         className={`${jakarta.variable} ${amiri.variable} ${bengali.variable} font-sans antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <ThemeApplier />
+          {children}
+        </Providers>
         <Toaster />
         <SonnerToaster position="top-center" />
       </body>

@@ -4,11 +4,12 @@ import { useNav } from "@/lib/stores/nav-store";
 import { useGame } from "@/lib/stores/game-store";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Heart, Target, Bell, Globe, Info, Shield, ChevronRight, Volume2, Vibrate, Clock } from "lucide-react";
+import { Moon, Sun, Heart, Target, Bell, Globe, Info, Shield, ChevronRight, Volume2, Vibrate, Clock, Palette, Check, Lock } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useThemeStore, THEMES, type ThemeId } from "@/lib/stores/theme-store";
 
 export function SettingsScreen() {
   const { back } = useNav();
@@ -48,6 +49,8 @@ export function SettingsScreen() {
               </button>
             </div>
           </Row>
+          {/* Custom theme selector */}
+          <ThemeSelectorRow />
         </Section>
 
         {/* Learning */}
@@ -138,6 +141,74 @@ export function SettingsScreen() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Theme Selector Row ---------- */
+function ThemeSelectorRow() {
+  const { active, owned, setTheme } = useThemeStore();
+  const { navigate } = useNav();
+
+  const themeIds: ThemeId[] = ["emerald", "gold", "rose", "midnight"];
+
+  return (
+    <div className="px-3.5 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Palette className="h-4 w-4 text-muted-foreground" />
+        <p className="font-bengali text-sm font-semibold">কাস্টম থিম</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {themeIds.map((id) => {
+          const theme = THEMES[id];
+          const isOwned = owned.includes(id);
+          const isActive = active === id;
+          return (
+            <button
+              key={id}
+              onClick={() => {
+                if (isOwned) {
+                  setTheme(id);
+                  toast.success(`${theme.icon} ${theme.nameBn} থিম প্রয়োগ হয়েছে!`);
+                } else {
+                  navigate({ name: "shop" });
+                }
+              }}
+              className={cn(
+                "relative flex flex-col items-center gap-1 rounded-xl border-2 p-2 transition-all tap-scale",
+                isActive ? "border-primary bg-primary/5" : "border-border/40 bg-card/40",
+                !isOwned && "opacity-60"
+              )}
+            >
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full text-sm shadow-soft"
+                style={{ backgroundColor: theme.primary }}
+              >
+                {theme.icon}
+              </div>
+              <span className="font-bengali text-[9px] font-bold leading-tight">{theme.nameBn}</span>
+              {!isOwned && (
+                <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[8px]">
+                  <Lock className="h-2.5 w-2.5" />
+                </div>
+              )}
+              {isActive && (
+                <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full gradient-emerald text-white">
+                  <Check className="h-2.5 w-2.5" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {!owned.includes("gold") && !owned.includes("rose") && !owned.includes("midnight") && (
+        <button
+          onClick={() => navigate({ name: "shop" })}
+          className="mt-2 w-full text-center text-[10px] text-primary font-bold tap-scale"
+        >
+          দোকানে আরও থিম কিনুন →
+        </button>
+      )}
     </div>
   );
 }

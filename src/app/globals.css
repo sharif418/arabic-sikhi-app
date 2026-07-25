@@ -353,3 +353,74 @@
 /* Safe area helpers */
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* ============================================
+   CUSTOM THEME OVERRIDES
+   Applied via data-theme attribute on <html>
+   ============================================ */
+
+/* Royal Gold — warm gold/amber palette */
+[data-theme="gold"] {
+  --primary: oklch(0.55 0.13 65);
+  --primary-foreground: oklch(0.98 0.015 95);
+  --ring: oklch(0.6 0.13 65);
+  --accent: oklch(0.93 0.05 65);
+  --accent-foreground: oklch(0.35 0.08 65);
+}
+[data-theme="gold"] .gradient-emerald {
+  background-image: linear-gradient(135deg, oklch(0.6 0.14 65) 0%, oklch(0.5 0.12 50) 100%);
+}
+[data-theme="gold"] .gradient-aurora {
+  background-image: linear-gradient(135deg, oklch(0.6 0.14 65) 0%, oklch(0.55 0.13 50) 50%, oklch(0.65 0.15 40) 100%);
+}
+[data-theme="gold"] .text-gradient-emerald {
+  background-image: linear-gradient(135deg, oklch(0.65 0.14 65) 0%, oklch(0.5 0.12 50) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Rose Dawn — warm rose/coral palette */
+[data-theme="rose"] {
+  --primary: oklch(0.55 0.14 10);
+  --primary-foreground: oklch(0.98 0.015 95);
+  --ring: oklch(0.6 0.14 10);
+  --accent: oklch(0.93 0.04 10);
+  --accent-foreground: oklch(0.35 0.08 10);
+}
+[data-theme="rose"] .gradient-emerald {
+  background-image: linear-gradient(135deg, oklch(0.6 0.15 10) 0%, oklch(0.5 0.13 350) 100%);
+}
+[data-theme="rose"] .gradient-aurora {
+  background-image: linear-gradient(135deg, oklch(0.6 0.15 10) 0%, oklch(0.55 0.14 350) 50%, oklch(0.65 0.16 330) 100%);
+}
+[data-theme="rose"] .text-gradient-emerald {
+  background-image: linear-gradient(135deg, oklch(0.65 0.15 10) 0%, oklch(0.5 0.13 350) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Midnight Mosque — deep indigo with gold */
+[data-theme="midnight"] {
+  --primary: oklch(0.5 0.12 265);
+  --primary-foreground: oklch(0.98 0.015 95);
+  --ring: oklch(0.55 0.12 265);
+  --accent: oklch(0.93 0.03 265);
+  --accent-foreground: oklch(0.35 0.06 265);
+}
+[data-theme="midnight"] .gradient-emerald {
+  background-image: linear-gradient(135deg, oklch(0.5 0.12 265) 0%, oklch(0.4 0.1 280) 100%);
+}
+[data-theme="midnight"] .gradient-aurora {
+  background-image: linear-gradient(135deg, oklch(0.5 0.12 265) 0%, oklch(0.45 0.1 290) 50%, oklch(0.55 0.13 310) 100%);
+}
+[data-theme="midnight"] .text-gradient-emerald {
+  background-image: linear-gradient(135deg, oklch(0.6 0.13 265) 0%, oklch(0.5 0.1 290) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[data-theme="midnight"] .shadow-glow-emerald {
+  box-shadow: 0 0 0 1px oklch(0.55 0.12 265 / 0.2), 0 8px 32px oklch(0.55 0.12 265 / 0.25);
+}
