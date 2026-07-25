@@ -4,7 +4,7 @@ import { useNav } from "@/lib/stores/nav-store";
 import { useGame } from "@/lib/stores/game-store";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Heart, Target, Bell, Globe, Info, Shield, ChevronRight, Volume2, Vibrate } from "lucide-react";
+import { Moon, Sun, Heart, Target, Bell, Globe, Info, Shield, ChevronRight, Volume2, Vibrate, Clock } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -70,6 +70,7 @@ export function SettingsScreen() {
               ))}
             </div>
           </Row>
+          <ReminderTimeRow />
           <Row icon={<Volume2 className="h-4 w-4" />} label="শব্দার্থ উচ্চারণ">
             <ToggleSwitch defaultOn />
           </Row>
@@ -140,6 +141,57 @@ export function SettingsScreen() {
   );
 }
 
+/* ---------- Reminder Time Row ---------- */
+function ReminderTimeRow() {
+  const [reminderTime, setReminderTime] = useState("19:00");
+  const [enabled, setEnabled] = useState(false);
+
+  const times = [
+    { value: "06:00", label: "সকাল ৬টা" },
+    { value: "09:00", label: "সকাল ৯টা" },
+    { value: "12:00", label: "দুপুর ১২টা" },
+    { value: "15:00", label: "বিকেল ৩টা" },
+    { value: "19:00", label: "সন্ধ্যা ৭টা" },
+    { value: "21:00", label: "রাত ৯টা" },
+  ];
+
+  const currentLabel = times.find((t) => t.value === reminderTime)?.label ?? reminderTime;
+
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-3">
+      <span className="text-muted-foreground">
+        <Clock className="h-4 w-4" />
+      </span>
+      <div className="flex-1">
+        <p className="font-bengali text-sm font-semibold">রিমাইন্ডার সময়</p>
+        <p className="font-bengali text-[10px] text-muted-foreground mt-0.5">
+          {enabled ? `প্রতিদিন ${currentLabel} এ মনে করিয়ে দেবে` : "বন্ধ আছে"}
+        </p>
+      </div>
+      {enabled && (
+        <select
+          value={reminderTime}
+          onChange={(e) => {
+            setReminderTime(e.target.value);
+            const label = times.find((t) => t.value === e.target.value)?.label;
+            toast.success(`রিমাইন্ডার ${label} এ সেট করা হয়েছে`);
+          }}
+          className="h-9 rounded-lg border border-border/60 bg-card/70 px-2 text-xs font-bold font-bengali"
+        >
+          {times.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+      )}
+      <ToggleSwitch on={enabled} onToggle={(v) => {
+        setEnabled(v);
+        if (v) toast.success("রিমাইন্ডার চালু হয়েছে");
+        else toast.info("রিমাইন্ডার বন্ধ করা হয়েছে");
+      }} />
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
@@ -163,11 +215,28 @@ function Row({ icon, label, children }: { icon: React.ReactNode; label: string; 
   );
 }
 
-function ToggleSwitch({ defaultOn = false }: { defaultOn?: boolean }) {
-  const [on, setOn] = useState(defaultOn);
+function ToggleSwitch({
+  defaultOn = false,
+  on: controlledOn,
+  onToggle,
+}: {
+  defaultOn?: boolean;
+  on?: boolean;
+  onToggle?: (v: boolean) => void;
+}) {
+  const [internalOn, setInternalOn] = useState(defaultOn);
+  const isControlled = controlledOn !== undefined;
+  const on = isControlled ? controlledOn : internalOn;
+
+  const handleClick = () => {
+    const next = !on;
+    if (!isControlled) setInternalOn(next);
+    onToggle?.(next);
+  };
+
   return (
     <button
-      onClick={() => setOn((o) => !o)}
+      onClick={handleClick}
       className={cn(
         "relative h-6 w-11 rounded-full transition-colors",
         on ? "gradient-emerald" : "bg-muted"

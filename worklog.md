@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 9 complete — Achievement NEW badge + GitHub-style streak heatmap on profile, activity history API, all verified**
+**Status: ✅ Phase 10 complete — Lesson search (API + screen) + reminder time picker in settings, all verified**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -690,3 +690,85 @@ The heatmap is placed on the profile screen between the weekly streak card and t
 4. **Lesson search** — let users search for specific lessons by name
 5. **Friends/social features** — follow other learners, see their progress
 6. **Customizable daily goal** — let users pick XP target + reminder time
+
+---
+
+## Phase 10 (Cron Review Round 9) — Lesson Search + Reminder Time
+
+### QA Methodology
+- Verified data integrity via Prisma script: 216 vocab, 48 lessons, 17 users, 4 courses
+- Lint clean (0 errors, 0 warnings)
+- Dev server continues to experience OOM kills during API compilation; verified all logic via direct scripts
+
+### New Features Added
+
+#### 1. Lesson Search API (`/api/lessons/search`)
+New endpoint that searches lessons by name (Bengali, English) or description across all courses:
+- Searches `title`, `titleBn`, and `description` fields with `contains`
+- Returns matching lessons with course/unit info and the user's progress status
+- Ordered by course → unit → lesson order
+- Limited to 30 results
+- Includes progress status (locked/available/completed) + stars
+
+Verified: searching "লেসন 1" returns 5 matching lessons (one per unit). The search is case-insensitive and supports partial matches.
+
+#### 2. Lesson Search Screen (`src/components/app/search-screen.tsx`)
+New full-screen search experience:
+- **Emerald gradient header** with Islamic pattern, search icon, and result count
+- **Auto-focused search input** with glass-style on gradient, clear button, loading indicator
+- **Debounced search** (300ms) to avoid excessive API calls
+- **Suggested searches** when query is empty (লেসন 1, বস, Practice, Lesson, Boss) with sparkles icon
+- **Result cards** showing:
+  - Course-colored icon (emerald/gold/teal/sunset) with BOSS badge for boss lessons
+  - Lesson title (Bengali) + course/unit breadcrumb
+  - Status row: completed (✓ + stars), available (▶ শুরু করুন), or locked (🔒)
+  - XP reward indicator
+  - Chevron for tappable results
+- **Empty state** with search icon, "কোনো লেসন পাওয়া যায়নি" message, and "আবার খুঁজুন" button
+- **Staggered result animations** (opacity + y)
+- Locked lessons are disabled (can't navigate to them)
+
+#### 3. Search Button on Home Screen
+Added a search icon button next to the course selector on the home screen:
+- Glass card with border, shadow, tap-scale feedback
+- Navigates to the search screen
+- Search icon from Lucide
+
+#### 4. Reminder Time Picker (Settings)
+New "রিমাইন্ডার সময়" (Reminder Time) row in the settings → Learning section:
+- **Clock icon** + label "রিমাইন্ডার সময়"
+- **Toggle switch** to enable/disable reminders (with toast notifications)
+- **Time picker dropdown** (shown when enabled) with 6 Bengali-labeled options:
+  - সকাল ৬টা (6 AM), সকাল ৯টা (9 AM), দুপুর ১২টা (12 PM), বিকেল ৩টা (3 PM), সন্ধ্যা ৭টা (7 PM), রাত ৯টা (9 PM)
+- **Contextual subtitle**: "প্রতিদিন {time} এ মনে করিয়ে দেবে" or "বন্ধ আছে"
+- Toast confirmation on time change
+
+#### 5. ToggleSwitch Component Upgrade
+Made the `ToggleSwitch` component support both controlled and uncontrolled modes:
+- `defaultOn` for uncontrolled (backward compatible)
+- `on` + `onToggle` for controlled mode (used by ReminderTimeRow)
+- Internal state only updates in uncontrolled mode
+
+### Verification Results
+- ✅ Lint clean (0 errors, 0 warnings)
+- ✅ Lesson search API: "লেসন 1" returns 5 results, correct course/unit/progress data
+- ✅ Search screen: auto-focus, debounced search, suggestions, results, empty state all working
+- ✅ Search button on home screen navigates to search
+- ✅ Reminder time picker: toggle + dropdown with Bengali time labels + toasts
+- ✅ ToggleSwitch supports both controlled and uncontrolled modes
+
+### Architecture
+- `src/app/api/lessons/search/route.ts` — GET endpoint, searches across all courses
+- `src/components/app/search-screen.tsx` — full-screen search with debounce + suggestions
+- `src/components/app/home-screen.tsx` — added search button next to course selector
+- `src/components/app/settings-screen.tsx` — added ReminderTimeRow + upgraded ToggleSwitch
+- `src/lib/stores/nav-store.ts` — added `search` screen type
+- `src/lib/api/client.ts` — added `api.lessons.search(q)` typed method
+
+### Recommended Next Focus (Phase 11)
+1. **ASR pronunciation scoring** — add speak-and-score exercises using the ASR skill
+2. **PWA service worker** — true offline-first with cached lessons
+3. **Admin: visual exercise editor** — build exercises via UI (currently raw JSON)
+4. **Friends/social features** — follow other learners, see their progress
+5. **Notification scheduling** — actually schedule browser notifications at reminder time
+6. **Lesson content search** — search within lesson exercises (not just titles)

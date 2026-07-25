@@ -74,6 +74,24 @@ export const api = {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+    search: (q: string) =>
+      request<{
+        results: Array<{
+          id: string;
+          title: string;
+          titleBn: string;
+          description: string;
+          type: string;
+          xpReward: number;
+          gemReward: number;
+          icon: string;
+          order: number;
+          course: { id: string; titleBn: string; icon: string; color: string; slug: string };
+          unit: { id: string; titleBn: string };
+          progress: { status: string; stars: number; score: number };
+        }>;
+        count: number;
+      }>(`/api/lessons/search?q=${encodeURIComponent(q)}`),
   },
   vocabulary: {
     due: (mode = "due", category?: string) =>

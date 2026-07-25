@@ -16,20 +16,21 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CourseSummary, CourseLesson } from "@/lib/types";
 import { useState } from "react";
-import { Sparkles, Bot, ChevronRight, Volume2, Calendar } from "lucide-react";
+import { Sparkles, Bot, ChevronRight, Volume2, Calendar, Search } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
 
 export function HomeScreen() {
   const { data, isLoading } = useQuery({ queryKey: ["courses"], queryFn: api.courses.list });
+  const { navigate } = useNav();
   const courses = data?.courses ?? [];
   const [activeIdx, setActiveIdx] = useState(0);
   const activeCourse = courses[activeIdx];
 
   return (
     <div className="flex h-full flex-col">
-      {/* Course selector */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+      {/* Course selector + search */}
+      <div className="px-3 pt-3 pb-2 flex items-center gap-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 flex-1">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-14 w-32 shrink-0 rounded-2xl" />
@@ -43,6 +44,13 @@ export function HomeScreen() {
                 />
               ))}
         </div>
+        <button
+          onClick={() => navigate({ name: "search" })}
+          className="shrink-0 flex h-11 w-11 items-center justify-center rounded-2xl glass border border-border/50 shadow-soft tap-scale hover:border-primary/40"
+          aria-label="লেসন খুঁজুন"
+        >
+          <Search className="h-5 w-5 text-muted-foreground" />
+        </button>
       </div>
 
       {/* Word of the Day */}
