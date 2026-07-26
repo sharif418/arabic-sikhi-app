@@ -2,12 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Enforce TypeScript and ESLint errors during builds — never ignore
+  // Enforce TypeScript errors during builds — never ignore
   typescript: {
     ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
   },
   // Enable React Strict Mode for development best practices
   reactStrictMode: true,
