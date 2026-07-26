@@ -61,6 +61,16 @@ export function TopBar() {
             value={streak || user?.streak || 0}
             tone="streak"
           />
+          {/* Streak freezes (only show if user has any) */}
+          {(user?.streakFreezes ?? 0) > 0 && (
+            <div
+              className="flex items-center gap-1 rounded-full bg-cyan-500/15 px-2 py-1 border border-cyan-500/20"
+              title={`${user?.streakFreezes} স্ট্রিক ফ্রিজ আছে`}
+            >
+              <span className="text-sm">🧊</span>
+              <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 tabular-nums">{user?.streakFreezes}</span>
+            </div>
+          )}
           {/* Gems */}
           <StatPill
             icon={<GemIcon className="h-4 w-4" />}

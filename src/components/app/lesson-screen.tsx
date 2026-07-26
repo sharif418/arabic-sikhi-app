@@ -887,20 +887,47 @@ function LessonComplete({
       {/* Confetti */}
       <Confetti />
 
+      {/* Glowing background rings */}
       <motion.div
-        initial={{ scale: 0, rotate: -30 }}
-        animate={{ scale: 1, rotate: 0 }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="absolute h-72 w-72 rounded-full gradient-emerald opacity-10 blur-3xl"
+      />
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1.5, opacity: 0.05 }}
+        transition={{ duration: 1.2, delay: 0.3 }}
+        className="absolute h-72 w-72 rounded-full gradient-gold blur-3xl"
+      />
+
+      {/* Trophy/emoji with bounce */}
+      <motion.div
+        initial={{ scale: 0, rotate: -30, y: -20 }}
+        animate={{ scale: 1, rotate: 0, y: 0 }}
         transition={{ type: "spring", stiffness: 200, damping: 12 }}
-        className="mb-4 text-7xl"
+        className="mb-2 text-7xl relative z-10"
       >
-        🎉
+        {stars === 3 ? "🏆" : "🎉"}
       </motion.div>
+
+      {/* "Perfect" badge for 3 stars */}
+      {stars === 3 && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+          className="mb-2 inline-flex items-center gap-1 rounded-full gradient-gold px-3 py-1 text-[10px] font-extrabold text-white shadow-glow-gold"
+        >
+          ✨ নিখুঁত! ✨
+        </motion.div>
+      )}
 
       <motion.h2
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="font-bengali text-2xl font-extrabold"
+        className="font-bengali text-2xl font-extrabold relative z-10"
       >
         লেসন সম্পন্ন!
       </motion.h2>
@@ -908,41 +935,54 @@ function LessonComplete({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="font-bengali text-sm text-muted-foreground mt-1"
+        className="font-bengali text-sm text-muted-foreground mt-1 relative z-10"
       >
         আল্লাহ আপনার ইলম বরকতময় করুন
       </motion.p>
 
       {/* Stars */}
-      <div className="mt-5 flex gap-2">
+      <div className="mt-5 flex gap-3 relative z-10">
         {Array.from({ length: 3 }).map((_, i) => (
           <motion.div
             key={i}
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
+            initial={{ scale: 0, rotate: -180, y: -30 }}
+            animate={{ scale: 1, rotate: 0, y: 0 }}
             transition={{ delay: 0.4 + i * 0.15, type: "spring", stiffness: 200 }}
           >
-            <StarIcon className="h-12 w-12" filled={i < stars} />
+            <StarIcon className={cn("h-14 w-14", i < stars && "drop-shadow-lg")} filled={i < stars} />
           </motion.div>
         ))}
       </div>
 
-      {/* Stats */}
+      {/* Stats with staggered reveal */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
-        className="mt-6 grid w-full max-w-xs grid-cols-3 gap-2"
+        className="mt-6 grid w-full max-w-xs grid-cols-3 gap-2 relative z-10"
       >
         <StatCard icon={<XpIcon className="h-5 w-5" />} label="XP" value={rewards?.xp ?? xpReward} color="emerald" />
         <StatCard icon={<GemIcon className="h-5 w-5" />} label="রত্ন" value={rewards?.gems ?? gemReward} color="gold" />
         <StatCard icon={<span className="text-lg">🎯</span>} label="নির্ভুলতা" value={`${accuracy}%`} color="teal" />
       </motion.div>
 
+      {/* Encouragement message based on accuracy */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2 }}
+        className="font-bengali text-[11px] text-muted-foreground mt-3 relative z-10"
+      >
+        {accuracy === 100 ? "অসাধারণ! প্রতিটি উত্তর সঠিক! 🌟" :
+         accuracy >= 80 ? "দারুণ হয়েছে! এভাবেই এগিয়ে যান 💪" :
+         accuracy >= 60 ? "ভালো হয়েছে! আরও অনুশীলন করুন 📚" :
+         "চিন্তা নেই, আবার চেষ্টা করুন! 💪"}
+      </motion.p>
+
       <Button
         onClick={() => back()}
         disabled={submitting}
-        className="mt-8 h-12 w-full max-w-xs gradient-emerald text-primary-foreground font-bold rounded-2xl shadow-glow-emerald tap-scale"
+        className="mt-5 h-12 w-full max-w-xs gradient-emerald text-primary-foreground font-bold rounded-2xl shadow-glow-emerald tap-scale relative z-10"
       >
         {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "চমৎকার! চালিয়ে যান"}
       </Button>

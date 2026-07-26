@@ -3095,3 +3095,44 @@ All endpoints tested and working on https://arabic.ailearnersbd.com:
 ### GitHub Version Control
 - Latest commit: `5112420` — Phase 24
 - All changes pushed to `main` branch
+
+---
+
+## Phase 25 — Enhanced Celebration + Streak Freeze Indicator
+
+### QA Methodology
+- GitHub synced at `7429908` (includes TS fix from previous round)
+- Live site verified: HTTP 200, login OK, daily challenge (5 questions), friends leaderboard (3 entries)
+- Lint: 0 errors, 0 warnings
+
+### Enhancements Added
+
+#### 1. Enhanced Lesson Completion Celebration
+Dramatically improved the lesson completion screen:
+- **Glowing background rings**: Two animated blur circles (emerald + gold) that fade in behind the content for depth
+- **Trophy for 3 stars**: Shows 🏆 instead of 🎉 when user gets a perfect score
+- **"নিখুঁত!" badge**: Gold gradient pill with sparkle appears only for 3-star completions
+- **Larger stars with drop shadow**: 14x14 (from 12x12), filled stars get `drop-shadow-lg`
+- **Bounce animation on stars**: Added `y: -30` to initial state for a more dramatic entrance
+- **Accuracy-based encouragement**: 4 different Bengali messages based on accuracy:
+  - 100%: "অসাধারণ! প্রতিটি উত্তর সঠিক! 🌟"
+  - 80%+: "দারুণ হয়েছে! এভাবেই এগিয়ে যান 💪"
+  - 60%+: "ভালো হয়েছে! আরও অনুশীলন করুন 📚"
+  - <60%: "চিন্তা নেই, আবার চেষ্টা করুন! 💪"
+- All elements have `relative z-10` to layer above the background glow
+
+#### 2. Streak Freeze Indicator (Top Bar)
+Added a cyan ice cube indicator to the top bar that appears when the user owns streak freezes:
+- Shows 🧊 + count in a cyan-tinted pill
+- Only visible when `streakFreezes > 0`
+- Tooltip: "{N} স্ট্রিক ফ্রিজ আছে"
+- Positioned between the streak and gems pills
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Lesson completion: enhanced with glowing rings, trophy, badge, encouragement
+- ✅ Streak freeze indicator: appears in top bar when user has freezes
+- ✅ All animations use Framer Motion with proper spring physics
+
+### GitHub Version Control
+- Latest commit pushed to `main` branch
