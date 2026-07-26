@@ -279,6 +279,23 @@ function VocabHome({ onStart }: { onStart: () => void }) {
         </svg>
       </button>
 
+      {/* Alphabet reference button */}
+      <button
+        onClick={() => navigate({ name: "alphabet" })}
+        className="mt-3 flex items-center gap-3 rounded-2xl glass border border-border/50 p-4 shadow-soft tap-scale w-full text-left"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl gradient-emerald text-white">
+          <span className="font-arabic text-xl font-bold">ا</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bengali text-sm font-bold">আরবি বর্ণমালা</p>
+          <p className="font-bengali text-[11px] text-muted-foreground mt-0.5">২৮টি অক্ষর · উচ্চারণ শুনুন</p>
+        </div>
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </button>
+
       {/* Tips */}
       <div className="mt-6 space-y-3">
         <h2 className="font-bengali text-sm font-bold text-muted-foreground uppercase tracking-wider">

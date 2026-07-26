@@ -11,6 +11,7 @@ export type Screen =
   | { name: "vocab-deck"; deckId?: string }
   | { name: "dictionary" }
   | { name: "friends" }
+  | { name: "alphabet" }
   | { name: "search" }
   | { name: "leaderboard" }
   | { name: "profile" }

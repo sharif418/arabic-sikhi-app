@@ -18,6 +18,7 @@ import { ShopScreen } from "./shop-screen";
 import { DictionaryScreen } from "./dictionary-screen";
 import { SearchScreen } from "./search-screen";
 import { FriendsScreen } from "./friends-screen";
+import { AlphabetScreen } from "./alphabet-screen";
 import { AnimatePresence, motion } from "framer-motion";
 
 /** Screens that should NOT show the top bar / bottom nav (full-screen experiences). */
@@ -36,6 +37,7 @@ export function ScreenRouter() {
   if (screen.name === "dictionary") return <DictionaryScreen />;
   if (screen.name === "search") return <SearchScreen />;
   if (screen.name === "friends") return <FriendsScreen />;
+  if (screen.name === "alphabet") return <AlphabetScreen />;
 
   // App shell with header + bottom nav
   return (

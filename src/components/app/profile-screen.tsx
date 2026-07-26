@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { LEAGUES } from "@/lib/stores/game-store";
 import { StreakHeatmap } from "./streak-heatmap";
 import { ShareCard } from "./share-card";
+import { CourseProgressOverview } from "./course-progress-overview";
 import { useState } from "react";
 
 export function ProfileScreen() {
@@ -109,6 +110,11 @@ export function ProfileScreen() {
       {/* Activity heatmap */}
       <div className="px-4 mt-3">
         <StreakHeatmap />
+      </div>
+
+      {/* Course progress overview */}
+      <div className="px-4 mt-3">
+        <CourseProgressOverview />
       </div>
 
       {/* Achievements */}

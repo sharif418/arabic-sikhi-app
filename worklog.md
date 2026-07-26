@@ -3178,3 +3178,44 @@ A premium shareable progress card on the profile screen:
 
 ### GitHub Version Control
 - Latest commit pushed to `main` branch
+
+---
+
+## Phase 27 — Course Progress Overview + Arabic Alphabet Chart
+
+### QA Methodology
+- GitHub synced at `8a3da30` (Phase 26)
+- Live site verified: HTTP 200, login OK, courses (4), daily challenge (5 questions)
+- Lint: 0 errors, 0 warnings
+
+### New Features Added
+
+#### 1. Course Progress Overview (Profile Screen)
+New `CourseProgressOverview` component on the profile screen:
+- **Animated SVG progress ring**: Shows overall completion % across all 4 courses
+- **Per-course progress bars**: 4 animated bars with course-specific gradients (emerald, gold, teal, sunset)
+- **Stats header**: Total completed lessons / total lessons count
+- **Staggered animations**: Each course bar animates in sequence
+- Positioned between the streak heatmap and achievements section
+
+#### 2. Arabic Alphabet Reference Chart
+New full-screen `AlphabetScreen` with all 28 Arabic letters:
+- **2-column grid**: Each letter card shows:
+  - Large Arabic letter in emerald gradient circle with TTS audio button
+  - Bengali name (আলিফ, বা, তা, etc.)
+  - English transliteration + phonetic sound (/a/, /b/, /t/)
+  - Example word in Arabic + Bengali meaning
+- **TTS pronunciation**: Tap any letter to hear it spoken via Web Speech API
+- **Aurora gradient header**: "আরবি বর্ণমালা — ২৮টি অক্ষর · উচ্চারণ শুনুন"
+- **Staggered card animations**: Each letter card fades in sequentially
+- **Footer tip**: "💡 প্রতিটি অক্ষরে ট্যাপ করে উচ্চারণ শুনুন"
+- Accessible from the vocabulary home screen via "আরবি বর্ণমালা" button (next to dictionary)
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Course progress: SVG ring, per-course bars, animated
+- ✅ Alphabet: 28 letters, TTS audio, example words, Bengali names
+- ✅ Navigation: alphabet screen registered in router, accessible from vocab home
+
+### GitHub Version Control
+- Latest commit pushed to `main` branch
