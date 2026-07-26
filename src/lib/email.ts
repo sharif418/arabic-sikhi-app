@@ -2,14 +2,14 @@ import { createTransport } from "nodemailer";
 
 /**
  * Email sending utility using Nodemailer.
- * Supports SMTP configuration via environment variables.
+ * Supports SMTP configuration via environment variables (Brevo-compatible).
  *
  * Required env vars:
- * - SMTP_HOST: SMTP server hostname
- * - SMTP_PORT: SMTP port (usually 587 for TLS, 465 for SSL)
+ * - SMTP_HOST: SMTP server hostname (e.g., smtp-relay.brevo.com)
+ * - SMTP_PORT: SMTP port (587 for TLS)
  * - SMTP_USER: SMTP username
- * - SMTP_PASS: SMTP password
- * - SMTP_FROM: From email address (e.g., "আরবি শিখি <noreply@arabicsikhi.com>")
+ * - SMTP_PASS: SMTP password / API key
+ * - SMTP_FROM: From email address
  */
 
 let transporter: ReturnType<typeof createTransport> | null = null;
@@ -23,7 +23,7 @@ function getTransporter() {
   const pass = process.env.SMTP_PASS;
 
   if (!host || !port || !user || !pass) {
-    throw new Error("SMTP environment variables not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM");
+    throw new Error("SMTP environment variables not configured.");
   }
 
   transporter = createTransport({
@@ -38,56 +38,127 @@ function getTransporter() {
 
 /**
  * Send a 6-digit OTP verification email.
- * Uses a beautiful HTML template with the Arabic Sikhi branding.
+ * Premium responsive HTML template with Arabic Sikhi branding.
  */
 export async function sendOTPEmail(email: string, code: string, name?: string): Promise<void> {
-  const from = process.env.SMTP_FROM ?? "আরবি শিখি <noreply@arabicsikhi.com>";
+  const from = process.env.SMTP_FROM ?? "Arabic Sikhi <noreply@arabic.ailearnersbd.com>";
   const transport = getTransporter();
 
-  const html = `
-<!DOCTYPE html>
-<html>
+  const greeting = name ? `${name}, আপনার` : "আপনার";
+
+  const html = `<!DOCTYPE html>
+<html lang="bn">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>আরবি শিখি — ইমেইল যাচাই কোড</title>
 </head>
-<body style="margin:0;padding:0;background:#f7f3ea;font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
-  <div style="max-width:480px;margin:0 auto;padding:32px 24px;">
-    <!-- Logo -->
-    <div style="text-align:center;margin-bottom:32px;">
-      <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#2d6a4f,#1b4332);color:white;font-size:28px;font-weight:bold;font-family:Amiri,serif;">ع</div>
-      <h1 style="color:#1b4332;font-size:20px;margin:12px 0 4px;">আরবি শিখি</h1>
-      <p style="color:#6b7280;font-size:12px;margin:0;">Arabic Sikhi — Premium Quranic Arabic Learning</p>
-    </div>
+<body style="margin:0;padding:0;background-color:#f7f3ea;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Plus Jakarta Sans','Noto Sans Bengali',sans-serif;-webkit-font-smoothing:antialiased;">
 
-    <!-- Card -->
-    <div style="background:white;border-radius:20px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-      <h2 style="color:#1b4332;font-size:18px;margin:0 0 8px;">ইমেইল যাচাই কোড</h2>
-      <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 24px;">
-        ${name ? `${name}, আপনার` : "আপনার"} আরবি শিখি অ্যাকাউন্ট যাচাই করতে নিচের ৬-সংখ্যার কোডটি ব্যবহার করুন:
-      </p>
+<!-- Preheader (hidden) -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+  আপনার আরবি শিখি অ্যাকাউন্ট যাচাই করতে এই ৬-সংখ্যার কোডটি ব্যবহার করুন।
+</div>
 
-      <!-- OTP Code -->
-      <div style="text-align:center;margin:24px 0;">
-        <div style="display:inline-block;letter-spacing:8px;font-size:36px;font-weight:800;color:#2d6a4f;background:#f0f7f4;border-radius:12px;padding:16px 32px;border:2px solid #d1e7dd;">
-          ${code}
-        </div>
-      </div>
+<!-- Outer wrapper -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f3ea;">
+<tr>
+<td align="center" style="padding:32px 16px;">
 
-      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:16px 0 0;">
-        এই কোডটি ১০ মিনিটের জন্য বৈধ।<br>
-        আপনি এই অনুরোধ করেননি? এই ইমেইলটি উপেক্ষা করুন।
-      </p>
-    </div>
+  <!-- Email container -->
+  <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+
+    <!-- Logo header -->
+    <tr>
+      <td align="center" style="padding-bottom:28px;">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center">
+            <div style="display:inline-block;width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#2d6a4f 0%,#1b4332 100%);text-align:center;line-height:64px;color:#ffffff;font-size:30px;font-weight:700;font-family:'Amiri','Noto Naskh Arabic',serif;">
+              ع
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:14px;">
+            <h1 style="margin:0;color:#1b4332;font-size:22px;font-weight:800;letter-spacing:-0.3px;">আরবি শিখি</h1>
+            <p style="margin:4px 0 0;color:#6b7280;font-size:12px;font-weight:500;letter-spacing:0.3px;">Arabic Sikhi — Premium Quranic Arabic Learning</p>
+          </td>
+        </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Main card -->
+    <tr>
+      <td>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:20px;box-shadow:0 2px 8px rgba(27,67,50,0.06);overflow:hidden;">
+
+          <!-- Top accent bar -->
+          <tr>
+            <td style="height:5px;background:linear-gradient(90deg,#2d6a4f 0%,#52b788 50%,#f4a261 100%);font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding:36px 32px 28px;">
+
+              <!-- Icon badge -->
+              <div style="text-align:center;margin-bottom:24px;">
+                <div style="display:inline-block;width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#d1e7dd 0%,#a3d9b1 100%);text-align:center;line-height:52px;font-size:26px;">
+                  🔐
+                </div>
+              </div>
+
+              <h2 style="margin:0 0 10px;color:#1b4332;font-size:19px;font-weight:700;text-align:center;">ইমেইল যাচাই কোড</h2>
+              <p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.65;text-align:center;">
+                ${greeting} আরবি শিখি অ্যাকাউন্ট যাচাই করতে নিচের<br>৬-সংখ্যার কোডটি ব্যবহার করুন:
+              </p>
+
+              <!-- OTP Code box -->
+              <div style="text-align:center;margin:8px 0 24px;">
+                <div style="display:inline-block;letter-spacing:10px;font-size:38px;font-weight:800;color:#1b4332;background:linear-gradient(135deg,#f0f7f4 0%,#e8f5e9 100%);border-radius:16px;padding:20px 36px;border:2px solid #d1e7dd;font-family:'Courier New',monospace;">
+                  ${code}
+                </div>
+              </div>
+
+              <!-- Expiry notice -->
+              <div style="background-color:#fef9e7;border:1px solid #fde68a;border-radius:12px;padding:12px 16px;margin:0 0 20px;">
+                <p style="margin:0;color:#92400e;font-size:12px;text-align:center;line-height:1.5;">
+                  ⏱ এই কোডটি <strong>১০ মিনিট</strong>ের জন্য বৈধ
+                </p>
+              </div>
+
+              <!-- Security note -->
+              <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;line-height:1.6;">
+                আপনি এই অনুরোধ করেননি? নিরাপত্তার জন্য এই ইমেইলটি উপেক্ষা করুন।<br>
+                কেউ আপনার অ্যাকাউন্ট অ্যাক্সেস করার চেষ্টা করছে না।
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
 
     <!-- Footer -->
-    <p style="color:#9ca3af;font-size:11px;text-align:center;margin:24px 0 0;">
-      © 2024 আস-সুন্নাহ ফাউন্ডেশন · আরবি শিখি
-    </p>
-  </div>
+    <tr>
+      <td align="center" style="padding:24px 16px 8px;">
+        <p style="margin:0 0 6px;color:#9ca3af;font-size:11px;font-weight:500;letter-spacing:0.2px;">
+          আস-সুন্নাহ ফাউন্ডেশন · আরবি শিখি
+        </p>
+        <p style="margin:0;color:#c9c9c9;font-size:10px;">
+          © 2024 Arabic Sikhi. All rights reserved.
+        </p>
+      </td>
+    </tr>
+
+  </table>
+</td>
+</tr>
+</table>
 </body>
-</html>
-  `.trim();
+</html>`;
 
   await transport.sendMail({
     from,
