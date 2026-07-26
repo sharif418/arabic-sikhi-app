@@ -9,17 +9,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import {
   LogOut, Settings, Flame, Star, BookOpen,
-  Award, ChevronRight, Bot, Shield, Moon, Sun, Crown, Zap, Gem, ShoppingBag, Users
+  Award, ChevronRight, Bot, Shield, Moon, Sun, Crown, Zap, Gem, ShoppingBag, Users, Share2
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
 import { LEAGUES } from "@/lib/stores/game-store";
 import { StreakHeatmap } from "./streak-heatmap";
+import { ShareCard } from "./share-card";
+import { useState } from "react";
 
 export function ProfileScreen() {
   const { user, logout } = useAuth();
   const { navigate, resetTo } = useNav();
+  const [showShare, setShowShare] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["user-stats"],
     queryFn: api.userStats,
@@ -63,7 +66,7 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      {/* Quick stats grid */}
+      {/* Quick stats grid + share button */}
       <div className="px-4 -mt-3">
         <div className="grid grid-cols-2 gap-2">
           <StatTile icon={<Zap className="h-4 w-4" />} label="মোট XP" value={user?.totalXp ?? 0} color="emerald" />
@@ -71,6 +74,14 @@ export function ProfileScreen() {
           <StatTile icon={<BookOpen className="h-4 w-4" />} label="লেসন" value={stats?.lessonsCompleted ?? 0} color="teal" />
           <StatTile icon={<Star className="h-4 w-4" />} label="তারকা" value={stats?.totalStars ?? 0} color="amber" />
         </div>
+        {/* Share progress button */}
+        <button
+          onClick={() => setShowShare(true)}
+          className="mt-2 w-full flex items-center justify-center gap-2 rounded-2xl gradient-emerald text-primary-foreground py-2.5 text-xs font-bold tap-scale shadow-soft"
+        >
+          <Share2 className="h-3.5 w-3.5" />
+          আমার অগ্রগতি শেয়ার করুন
+        </button>
       </div>
 
       {/* Streak / weekly activity card */}
@@ -178,6 +189,15 @@ export function ProfileScreen() {
           আরবি শিখি v1.0 · আস-সুন্নাহ ফাউন্ডেশন
         </p>
       </div>
+
+      {/* Share card modal */}
+      {showShare && user && stats && (
+        <ShareCard
+          user={user}
+          stats={stats}
+          onClose={() => setShowShare(false)}
+        />
+      )}
     </div>
   );
 }

@@ -3136,3 +3136,45 @@ Added a cyan ice cube indicator to the top bar that appears when the user owns s
 
 ### GitHub Version Control
 - Latest commit pushed to `main` branch
+
+---
+
+## Phase 26 — Progress Sharing Card
+
+### QA Methodology
+- GitHub synced at `5b5307d` (Phase 25)
+- Live site verified: HTTP 200, login OK
+- Lint: 0 errors, 0 warnings
+
+### New Feature: Progress Sharing Card
+A premium shareable progress card on the profile screen:
+
+#### ShareCard Component (`src/components/app/share-card.tsx`)
+- **Emerald gradient header**: App logo (ع), user name, level, XP, league badge
+- **Islamic pattern overlay**: Subtle pattern on the header
+- **Stats grid (2×2)**: Streak (with flame icon), Total XP, Lessons completed, Total stars
+- **Perfect lessons badge**: Gold-highlighted box showing count of 3-star lessons
+- **Vocab learned badge**: Teal-highlighted box showing words learned count
+- **Branding footer**: "আরবি শিখি · আস-সুন্নাহ ফাউন্ডেশন" + URL
+- **Spring-animated entrance**: Scale + slide up from bottom
+- **Backdrop blur**: Semi-transparent dark background, tap-to-close
+
+#### Share Functionality
+- **Native share API**: Uses `navigator.share()` on supported devices (mobile)
+- **Clipboard fallback**: Copies formatted progress text to clipboard with toast notification
+- **Share text includes**: User name, level, streak, XP, league, lessons completed, stars, app URL
+- **Bengali formatted**: "আরবি শিখি 📚\n\n{name} — লেভেল {level}\n🔥 {streak} দিনের স্ট্রিক..."
+
+#### Profile Integration
+- **"আমার অগ্রগতি শেয়ার করুন" button**: Emerald gradient pill below the stats grid on the profile screen
+- Opens the ShareCard modal with user data + stats from the user-stats query
+- Closes on tap-outside or "বন্ধ করুন" button
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ ShareCard: premium gradient header, stats grid, badges, branding
+- ✅ Share: native API + clipboard fallback with Bengali toast
+- ✅ Profile integration: button below stats, modal opens/closes correctly
+
+### GitHub Version Control
+- Latest commit pushed to `main` branch
