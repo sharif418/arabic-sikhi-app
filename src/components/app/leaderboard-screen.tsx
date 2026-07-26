@@ -14,13 +14,22 @@ export function LeaderboardScreen() {
   const { user } = useAuth();
   const userLeague = user?.league ?? "Bronze";
   const [selectedLeague, setSelectedLeague] = useState(userLeague);
+  const [viewMode, setViewMode] = useState<"global" | "friends">("global");
 
   const { data, isLoading } = useQuery({
     queryKey: ["leaderboard", selectedLeague],
     queryFn: () => api.leaderboard(selectedLeague),
+    enabled: viewMode === "global",
   });
 
-  const entries = data?.entries ?? [];
+  const { data: friendsData, isLoading: friendsLoading } = useQuery({
+    queryKey: ["leaderboard-friends"],
+    queryFn: () => api.leaderboardFriends(),
+    enabled: viewMode === "friends",
+  });
+
+  const entries = viewMode === "global" ? (data?.entries ?? []) : (friendsData?.entries ?? []);
+  const isLoading_ = viewMode === "global" ? isLoading : friendsLoading;
 
   return (
     <div className="flex h-full flex-col">
@@ -28,34 +37,54 @@ export function LeaderboardScreen() {
       <div className="px-5 pt-4 pb-2">
         <h1 className="font-bengali text-2xl font-extrabold">র‍্যাঙ্কিং</h1>
         <p className="font-bengali text-sm text-muted-foreground mt-0.5">
-          প্রতি সপ্তাহে শীর্ষ ৩ উন্নতি পায়
+          {viewMode === "global" ? "প্রতি সপ্তাহে শীর্ষ ৩ উন্নতি পায়" : "আপনার বন্ধুদের সাথে প্রতিযোগিতা"}
         </p>
       </div>
 
-      {/* League selector */}
-      <div className="px-4 pb-3">
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-          {LEAGUES.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => setSelectedLeague(l.id)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all tap-scale border",
-                selectedLeague === l.id
-                  ? "text-primary-foreground border-transparent shadow-soft"
-                  : "bg-card/70 border-border/50 text-muted-foreground hover:text-foreground"
-              )}
-              style={selectedLeague === l.id ? { backgroundColor: l.color } : undefined}
-            >
-              <span>{l.icon}</span>
-              <span className="font-bengali">{l.name}</span>
-            </button>
-          ))}
+      {/* View mode toggle */}
+      <div className="px-4 pb-2">
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted/60">
+          <button
+            onClick={() => setViewMode("global")}
+            className={cn("py-1.5 rounded-lg text-xs font-bold transition-all tap-scale", viewMode === "global" ? "gradient-emerald text-primary-foreground" : "text-muted-foreground")}
+          >
+            🌍 গ্লোবাল
+          </button>
+          <button
+            onClick={() => setViewMode("friends")}
+            className={cn("py-1.5 rounded-lg text-xs font-bold transition-all tap-scale", viewMode === "friends" ? "gradient-emerald text-primary-foreground" : "text-muted-foreground")}
+          >
+            👥 বন্ধুরা
+          </button>
         </div>
       </div>
 
+      {/* League selector (only in global mode) */}
+      {viewMode === "global" && (
+        <div className="px-4 pb-3">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+            {LEAGUES.map((l) => (
+              <button
+                key={l.id}
+                onClick={() => setSelectedLeague(l.id)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all tap-scale border",
+                  selectedLeague === l.id
+                    ? "text-primary-foreground border-transparent shadow-soft"
+                    : "bg-card/70 border-border/50 text-muted-foreground hover:text-foreground"
+                )}
+                style={selectedLeague === l.id ? { backgroundColor: l.color } : undefined}
+              >
+                <span>{l.icon}</span>
+                <span className="font-bengali">{l.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Podium */}
-      {entries.length >= 3 && !isLoading && (
+      {entries.length >= 3 && !isLoading_ && viewMode === "global" && (
         <Podium entries={entries.slice(0, 3)} />
       )}
 
@@ -81,7 +110,7 @@ export function LeaderboardScreen() {
 
       {/* Full list */}
       <div className="flex-1 overflow-y-auto premium-scroll px-4 pb-4">
-        {isLoading ? (
+        {isLoading_ ? (
           <div className="space-y-2">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-2xl" />

@@ -190,6 +190,21 @@ export const api = {
       promotionZone: string[];
       demotionZone: string[];
     }>(`/api/leaderboard${league ? `?league=${league}` : ""}`),
+  leaderboardFriends: () =>
+    request<{
+      entries: Array<{
+        rank: number;
+        userId: string;
+        name: string;
+        streak: number;
+        level: number;
+        league: string;
+        weeklyXp: number;
+        totalXp: number;
+        isMe: boolean;
+      }>;
+      count: number;
+    }>("/api/leaderboard/friends"),
   friends: {
     list: () =>
       request<{
@@ -247,6 +262,28 @@ export const api = {
         }>;
         count: number;
       }>("/api/friends/feed"),
+  },
+  dailyChallenge: {
+    get: () =>
+      request<{
+        challengeId: string;
+        date: string;
+        questions: Array<{
+          wordId: string;
+          arabic: string;
+          transliteration: string;
+          correctAnswer: string;
+          options: string[];
+          category: string | null;
+        }>;
+        completed: boolean;
+        rewards: { xp: number; gems: number; bonus: string };
+      }>("/api/daily-challenge"),
+    complete: (correctCount: number, totalCount: number) =>
+      request<{ success: boolean; rewards: { xp: number; gems: number }; accuracy: number }>(
+        "/api/daily-challenge",
+        { method: "POST", body: JSON.stringify({ correctCount, totalCount }) }
+      ),
   },
   userStats: () =>
     request<{

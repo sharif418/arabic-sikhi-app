@@ -17,6 +17,7 @@ import { useState } from "react";
 import { Sparkles, Bot, ChevronRight, Volume2, Calendar, Search, X } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { useNotifications } from "@/hooks/use-notifications";
+import { DailyChallenge } from "./daily-challenge";
 
 export function HomeScreen() {
   const { data, isLoading } = useQuery({ queryKey: ["courses"], queryFn: api.courses.list });
@@ -54,6 +55,9 @@ export function HomeScreen() {
 
       {/* Notification permission nudge (dismissible) */}
       <NotificationNudge />
+
+      {/* Daily Challenge */}
+      <DailyChallenge />
 
       {/* Word of the Day */}
       <DailyWord />
