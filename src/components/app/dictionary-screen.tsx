@@ -59,7 +59,6 @@ export function DictionaryScreen() {
     queryFn: () => api.vocabulary.browse({ q: search || undefined, category: category || undefined, page, limit: 20 }),
   });
 
-  const wordCards = data?.cards ?? [];
 
   return (
     <div className="flex h-full flex-col">

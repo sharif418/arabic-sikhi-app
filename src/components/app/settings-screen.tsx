@@ -148,7 +148,7 @@ export function SettingsScreen() {
 
 /* ---------- Theme Selector Row ---------- */
 function ThemeSelectorRow() {
-  const { active, owned, setTheme } = useThemeStore();
+  const { active, owned } = useThemeStore();
   const { navigate } = useNav();
   const [previewTheme, setPreviewTheme] = useState<ThemeId | null>(null);
 

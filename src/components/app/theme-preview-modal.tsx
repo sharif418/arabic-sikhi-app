@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { X, Check, GemIcon as GemIconType } from "lucide-react";
+import { X, Check } from "lucide-react";
 import { GemIcon, HeartIcon, StreakIcon, XpIcon } from "@/components/icons/game-icons";
 import { useThemeStore, THEMES, applyThemeCss, type ThemeId } from "@/lib/stores/theme-store";
 import { useGame } from "@/lib/stores/game-store";

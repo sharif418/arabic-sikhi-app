@@ -55,7 +55,7 @@ export default function Home() {
         useNav.getState().resetTo({ name: "home" });
       }
     }
-  }, [user?.id, user?.streak, currentScreen.name, hydrateFromServer, refresh]);
+  }, [user, currentScreen.name, hydrateFromServer, refresh]);
 
   // Splash / loading state
   if (loading && !user) {

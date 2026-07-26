@@ -6,7 +6,7 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/stores/auth-store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { Crown, TrendingUp, Flame, Zap } from "lucide-react";
+import { Crown, Flame, Zap } from "lucide-react";
 import { LEAGUES } from "@/lib/stores/game-store";
 import { cn } from "@/lib/utils";
 
@@ -89,7 +89,7 @@ export function LeaderboardScreen() {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {entries.map((e, i) => (
+            {entries.map((e) => (
               <RankRow key={e.userId} entry={e} promotionZone={data?.promotionZone ?? []} />
             ))}
             {entries.length === 0 && (

@@ -7,7 +7,7 @@ import { useThemeStore, THEMES, type ThemeId } from "@/lib/stores/theme-store";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft, Heart, Flame, Zap, Snowflake, Palette, Check, Lock, Sparkles, Crown
+  ArrowLeft, Heart, Flame, Zap, Snowflake, Palette, Check, Sparkles, Crown
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";

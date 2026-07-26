@@ -5,7 +5,7 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/stores/auth-store";
 import { useNav } from "@/lib/stores/nav-store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+
 import { motion } from "framer-motion";
 import {
   LogOut, Settings, Flame, Star, BookOpen,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { StarIcon } from "@/components/icons/game-icons";
+
 import { LEAGUES } from "@/lib/stores/game-store";
 import { StreakHeatmap } from "./streak-heatmap";
 

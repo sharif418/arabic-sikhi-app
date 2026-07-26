@@ -9,7 +9,7 @@ import { useSpeech } from "@/hooks/use-speech";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Volume2, RotateCcw, Check, X, Brain, Flame, Sparkles, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+import { Volume2, RotateCcw, Check, Brain, Flame, Sparkles, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -229,7 +229,7 @@ function VocabHome({ onStart }: { onStart: () => void }) {
     queryFn: () => api.vocabulary.due("due"),
   });
   const count = data?.count ?? 0;
-  const mode = data?.mode ?? "due";
+  // mode is available via data?.mode if needed
   const { navigate } = useNav();
 
   return (

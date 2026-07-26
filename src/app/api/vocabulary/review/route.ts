@@ -28,7 +28,7 @@ export const POST = apiHandler(async (req) => {
   let box = existing?.box ?? 1;
   let ease = existing?.easeFactor ?? 2.5;
   let interval = existing?.interval ?? 1;
-  let reviewCount = (existing?.reviewCount ?? 0) + 1;
+  const reviewCount = (existing?.reviewCount ?? 0) + 1;
 
   if (quality < 3) {
     // Failed — reset

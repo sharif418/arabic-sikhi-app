@@ -2,7 +2,7 @@
 
 import { useServiceWorker } from "@/hooks/use-service-worker";
 import { motion, AnimatePresence } from "framer-motion";
-import { Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { WifiOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**

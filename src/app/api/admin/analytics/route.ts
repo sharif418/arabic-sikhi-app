@@ -107,7 +107,7 @@ export const GET = apiHandler(async (req) => {
   });
 
   const allLessonIds = courseStats.flatMap((c) => c.units.flatMap((u) => u.lessons.map((l) => l.id)));
-  const totalCompletions = await db.userProgress.count({
+  const _totalCompletions = await db.userProgress.count({
     where: { lessonId: { in: allLessonIds }, status: "completed" },
   });
 

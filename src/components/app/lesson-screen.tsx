@@ -10,7 +10,7 @@ import { useSpeech } from "@/hooks/use-speech";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Check, X, Volume2, Sparkles, Heart, Gem } from "lucide-react";
+import { Loader2, Check, X, Volume2 } from "lucide-react";
 import { HeartIcon, GemIcon, XpIcon, StarIcon } from "@/components/icons/game-icons";
 import { cn } from "@/lib/utils";
 import type { Exercise } from "@/lib/types";
@@ -204,7 +204,7 @@ function MultipleChoice({
       </p>
       {ex.arabic && (
         <button
-          onClick={() => speak(ex.arabic!)}
+          onClick={() => ex.arabic && speak(ex.arabic)}
           className="flex items-center gap-2 rounded-2xl glass px-4 py-3 mb-4 tap-scale"
         >
           <Volume2 className="h-5 w-5 text-primary" />

@@ -6,7 +6,7 @@
  * This component replaces the entire <html> document.
  */
 export default function GlobalError({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };

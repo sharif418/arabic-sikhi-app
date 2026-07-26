@@ -9,10 +9,8 @@ import {
   LockIcon,
   StarIcon,
   CrownIcon,
-  TrophyIcon,
 } from "@/components/icons/game-icons";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CourseSummary, CourseLesson } from "@/lib/types";
 import { useState } from "react";
@@ -369,11 +367,11 @@ function LearningPath({ course }: { course: CourseSummary }) {
 function LessonNode({
   lesson,
   index,
-  unitIndex,
+  _unitIndex,
 }: {
   lesson: CourseLesson;
   index: number;
-  unitIndex: number;
+  _unitIndex: number;
 }) {
   const { navigate } = useNav();
   const progress = lesson.progress?.[0];

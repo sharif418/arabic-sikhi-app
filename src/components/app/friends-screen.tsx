@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { useNav } from "@/lib/stores/nav-store";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, UserPlus, UserCheck, Flame, Zap, Users, ChevronRight, X } from "lucide-react";
+import { Search, UserPlus, UserCheck, Flame, Zap, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";

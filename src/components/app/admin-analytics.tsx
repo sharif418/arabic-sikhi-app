@@ -364,7 +364,7 @@ function SummaryCard({
             )}
           >
             {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-            {Math.abs(delta!).toFixed(0)}%
+            {delta !== undefined && Math.abs(delta).toFixed(0)}%
           </span>
         )}
       </div>

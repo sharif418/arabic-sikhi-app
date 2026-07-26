@@ -17,10 +17,10 @@ const COURSE_COLORS: Record<string, string> = {
 };
 
 const SUGGESTED_SEARCHES = [
+  "السَّلَامُ",
+  "শান্তি",
   "লেসন 1",
-  "বস",
-  "Practice",
-  "Lesson",
+  "কেমন",
   "Boss",
 ];
 
@@ -180,7 +180,24 @@ export function SearchScreen() {
                           </span>
                         )}
                         <span className="text-[9px] text-emerald-600 dark:text-emerald-400">+{lesson.xpReward} XP</span>
+                        {/* Content match indicator */}
+                        {"contentMatches" in lesson && lesson.contentMatches && lesson.contentMatches.length > 0 && (
+                          <span className="flex items-center gap-0.5 text-[8px] font-bold text-primary bg-primary/10 rounded-full px-1 py-0.5">
+                            📝 কন্টেন্ট ম্যাচ
+                          </span>
+                        )}
                       </div>
+                      {/* Content match snippets */}
+                      {"contentMatches" in lesson && lesson.contentMatches && lesson.contentMatches.length > 0 && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {lesson.contentMatches.map((match: { field: string; value: string }, idx: number) => (
+                            <div key={idx} className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                              <span className="rounded bg-muted px-1 py-0.5 font-mono text-[8px]">{match.field}</span>
+                              <span className="truncate font-bengali">{match.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Chevron */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCurrentScreen, useNav } from "@/lib/stores/nav-store";
+import { useCurrentScreen } from "@/lib/stores/nav-store";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
 import { OnboardingScreen } from "./onboarding-screen";
@@ -21,7 +21,7 @@ import { FriendsScreen } from "./friends-screen";
 import { AnimatePresence, motion } from "framer-motion";
 
 /** Screens that should NOT show the top bar / bottom nav (full-screen experiences). */
-const FULLSCREEN_SCREENS = new Set(["onboarding", "auth", "lesson", "ai-tutor", "shop", "dictionary", "search", "friends"]);
+// const FULLSCREEN_SCREENS = new Set(["onboarding", "auth", "lesson", "ai-tutor", "shop", "dictionary", "search", "friends"]);
 
 export function ScreenRouter() {
   const screen = useCurrentScreen();

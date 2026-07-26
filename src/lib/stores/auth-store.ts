@@ -15,7 +15,7 @@ interface AuthState {
   setLocal: (patch: Partial<SessionUser>) => void;
 }
 
-export const useAuth = create<AuthState>((set, get) => ({
+export const useAuth = create<AuthState>((set, _get) => ({
   user: null,
   loading: true,
   error: null,
