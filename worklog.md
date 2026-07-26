@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 20 complete — Offline lesson pre-caching (auto-cache on open, settings management) + enhanced page transitions, 0 lint warnings, pushed to GitHub**
+**Status: ✅ Phase 21 complete — PostgreSQL migration, 6-digit OTP email verification with auto-login, Dockerfile for Coolify, pushed to GitHub. Ready for deployment.**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -2876,3 +2876,50 @@ Improved screen transition animations in the screen router:
 ### GitHub Version Control
 - Previous commit: `242514a` (Phase 19)
 - Phase 20 committed and pushed to `main` branch
+
+---
+
+## Phase 21 — Production Deployment: PostgreSQL + Email OTP + Dockerfile
+
+### CTO Architectural Decisions
+1. **PostgreSQL over SQLite**: Migrated Prisma schema from SQLite to PostgreSQL for production-grade concurrent access, ACID compliance, and JSON column support
+2. **In-memory rate limiter retained**: Redis is overkill for single-instance Coolify deployment. Can add later for horizontal scaling.
+3. **6-digit OTP with auto-login**: Most frictionless auth UX — user enters email → gets 6-digit code → enters it → instantly logged in. No passwords to remember.
+
+### Codebase Changes
+
+#### 1. PostgreSQL Migration
+- `prisma/schema.prisma`: Changed `provider` from `"sqlite"` to `"postgresql"`
+- Added `emailVerified Boolean @default(false)` to User model
+- Changed `passwordHash` to `@default("")` for OTP-only users
+- Added `EmailOTP` model: `email`, `code`, `expiresAt`, `attempts`, `verified`
+
+#### 2. Email Verification System
+- `src/lib/email.ts`: Nodemailer-based email sender with premium HTML template (emerald gradient header, large OTP display, Bengali text)
+- `POST /api/auth/send-otp`: Generates 6-digit code, sends email, rate-limited (3/5min per IP)
+- `POST /api/auth/verify-otp`: Validates code, creates/updates user, auto-login via session creation
+- Rate limited: 5 verification attempts per 5 minutes per IP
+- OTP expires after 10 minutes, max 5 failed attempts
+
+#### 3. OTP Auth Screen (Complete Rewrite)
+- **Step 1 (Credentials)**: Email + optional name → sends OTP
+- **Step 2 (OTP)**: 6 individual digit inputs with auto-advance, paste support, backspace navigation
+- **Auto-login**: On successful verification, session is created and user is redirected to home
+- **Resend with cooldown**: 30-second countdown between resends
+- **Dev mode**: Returns OTP code directly in response (no email needed during development)
+- **Demo login retained**: Password-based demo login still available
+
+#### 4. Dockerfile + Nixpacks for Coolify
+- Multi-stage Docker build: deps → build → runner
+- `nixpacks.toml` for Coolify auto-detection
+- Runs `prisma db push` on startup to create/migrate database schema
+- Exposes port 3000
+
+#### 5. Updated `.env.example`
+- Documents all production env vars: `DATABASE_URL` (PostgreSQL), `SESSION_SECRET`, `SMTP_HOST/PORT/USER/PASS/FROM`
+
+### SMTP Requirement
+**⚠️ We need an SMTP API key to send verification emails.** The code is ready — just needs `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` environment variables. In dev mode, the OTP code is returned directly in the API response for testing without email.
+
+### GitHub Version Control
+- All changes committed and pushed to `main` branch before Coolify deployment

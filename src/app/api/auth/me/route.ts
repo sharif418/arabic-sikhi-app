@@ -23,6 +23,7 @@ export const GET = apiHandler(async () => {
       league: true,
       hearts: true,
       streakFreezes: true,
+      emailVerified: true,
     },
   });
 

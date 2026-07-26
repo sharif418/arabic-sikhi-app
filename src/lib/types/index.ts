@@ -108,4 +108,5 @@ export type SessionUser = {
   league: string;
   hearts: number;
   streakFreezes?: number;
+  emailVerified?: boolean;
 };
