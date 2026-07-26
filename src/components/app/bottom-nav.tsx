@@ -1,6 +1,8 @@
 "use client";
 
 import { useNav, type TabName } from "@/lib/stores/nav-store";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -58,11 +60,28 @@ const TABS: {
 export function BottomNav() {
   const { activeTab, setTab } = useNav();
 
+  // Check for due vocabulary reviews to show a badge
+  const { data: vocabData } = useQuery({
+    queryKey: ["vocab-due-count"],
+    queryFn: () => api.vocabulary.due("due"),
+    staleTime: 60 * 1000,
+  });
+  const dueCount = vocabData?.count ?? 0;
+
+  // Badges per tab
+  const badges: Record<TabName, number | null> = {
+    home: null,
+    vocabulary: dueCount > 0 ? dueCount : null,
+    leaderboard: null,
+    profile: null,
+  };
+
   return (
     <nav className="sticky bottom-0 z-40 glass-strong border-t border-border/40 safe-bottom">
       <div className="flex items-stretch justify-around px-2 py-1.5">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
+          const badge = badges[tab.id];
           return (
             <button
               key={tab.id}
@@ -86,6 +105,16 @@ export function BottomNav() {
                   />
                 )}
                 <span className="relative z-10">{tab.icon(active)}</span>
+                {/* Badge */}
+                {badge && !active && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full gradient-gold px-1 text-[8px] font-bold text-white shadow-soft z-20"
+                  >
+                    {badge > 9 ? "9+" : badge}
+                  </motion.span>
+                )}
               </span>
               <span
                 className={cn(

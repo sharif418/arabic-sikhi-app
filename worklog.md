@@ -3219,3 +3219,39 @@ New full-screen `AlphabetScreen` with all 28 Arabic letters:
 
 ### GitHub Version Control
 - Latest commit pushed to `main` branch
+
+---
+
+## Phase 28 — Weekly Goal Tracker + Bottom Nav Badges
+
+### QA Methodology
+- GitHub synced at `a78798f` (Phase 27)
+- Live site verified: HTTP 200, login OK, 4 courses, stats endpoint working
+- Lint: 0 errors, 0 warnings
+
+### New Features Added
+
+#### 1. Weekly XP Goal Tracker (Home Screen)
+New `WeeklyGoalTracker` component on the home screen:
+- **Animated SVG progress ring**: Shows weekly XP progress toward goal (30 XP/day × 7 = 210 XP/week)
+- **7-day indicator bars**: Visual bars showing active days (emerald if on track, gold if behind)
+- **Adaptive color**: Ring uses emerald gradient when on track (≥50%), gold when behind
+- **Status text**: "✅ লক্ষ্যে আছেন!" or "🔥 আরও এগিয়ে যান"
+- Positioned between the daily goal banner and the learning path
+
+#### 2. Bottom Nav Badge Indicators
+Enhanced the bottom navigation with notification badges:
+- **Vocabulary tab badge**: Shows gold pill with due review count when user has pending vocabulary reviews
+- **Animated entrance**: Badge scales in from 0 with spring physics
+- **Smart display**: Only shows on inactive tabs (hides when you're already on that tab)
+- **9+ cap**: Shows "9+" for counts above 9
+- Queries due vocabulary count every 60 seconds (staleTime)
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Weekly tracker: SVG ring, day indicators, adaptive colors, status text
+- ✅ Bottom nav badges: gold pill with count, animated, hides on active tab
+- ✅ Both components integrated into existing screens
+
+### GitHub Version Control
+- Latest commit pushed to `main` branch

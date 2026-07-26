@@ -18,6 +18,7 @@ import { Sparkles, Bot, ChevronRight, Volume2, Calendar, Search, X } from "lucid
 import { useSpeech } from "@/hooks/use-speech";
 import { useNotifications } from "@/hooks/use-notifications";
 import { DailyChallenge } from "./daily-challenge";
+import { WeeklyGoalTracker } from "./weekly-goal-tracker";
 
 export function HomeScreen() {
   const { data, isLoading } = useQuery({ queryKey: ["courses"], queryFn: api.courses.list });
@@ -64,6 +65,11 @@ export function HomeScreen() {
 
       {/* Daily goal banner */}
       <DailyGoalBanner />
+
+      {/* Weekly goal tracker */}
+      <div className="px-4 pb-3">
+        <WeeklyGoalTracker />
+      </div>
 
       {/* Learning path */}
       <div className="flex-1 overflow-y-auto premium-scroll px-4 pb-8">
