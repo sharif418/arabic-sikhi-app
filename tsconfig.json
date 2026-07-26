@@ -41,6 +41,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "examples",
+    "skills",
+    "prisma/seed.ts",
+    "prisma/expand-vocabulary.ts",
+    "prisma/fix-descriptions.ts",
+    "prisma/retroactive-achievements.ts"
   ]
 }
