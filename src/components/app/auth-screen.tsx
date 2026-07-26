@@ -33,6 +33,7 @@ export function AuthScreen() {
       const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [resendCooldown]);
 
   // Handle OTP input — auto-advance to next field
@@ -46,7 +47,7 @@ export function AuthScreen() {
     }
   };
 
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent): void => {
     if (e.key === "Backspace" && !otpCode[index] && index > 0) {
       otpRefs.current[index - 1]?.focus();
     }

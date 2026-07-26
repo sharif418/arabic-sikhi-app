@@ -345,7 +345,7 @@ function LearningPath({ course }: { course: CourseSummary }) {
                 key={lesson.id}
                 lesson={lesson}
                 index={li}
-                unitIndex={ui}
+                _unitIndex={ui}
               />
             ))}
           </div>

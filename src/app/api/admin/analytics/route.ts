@@ -10,7 +10,7 @@ function dayKey(d: Date): string {
 /** Get the Bengali weekday short name for a date. */
 function bengaliDay(d: Date): string {
   const days = ["রবি", "সোম", "মঙ্গল", "বুধ", "বৃহ", "শুক্র", "শনি"];
-  return days[d.getDay()];
+  return days[d.getDay()] ?? "";
 }
 
 export const GET = apiHandler(async (req) => {

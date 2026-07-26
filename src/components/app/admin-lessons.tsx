@@ -76,7 +76,7 @@ export function AdminLessons() {
   // Filter units by course
   const visibleUnits = units.filter((u) => !courseFilter || u.course.id === courseFilter);
   // Group units by course for the filter
-  const courses = Array.from(new Map(units.map((u) => [u.course.id, u.course]).values()).values());
+  const courses = units.map((u) => u.course).filter((c, i, arr) => arr.findIndex((x) => x.id === c.id) === i);
 
   const toggle = (unitId: string) => {
     setExpanded((prev) => {

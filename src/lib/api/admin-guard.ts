@@ -1,6 +1,4 @@
-import { getSessionUser } from "@/lib/session";
-// fail is available via apiHandler
-import type { SessionUser } from "@/lib/types";
+import { getSessionUser, type SessionUser } from "@/lib/session";
 
 /** Returns the session user if they are an admin, otherwise a 403 response tuple. */
 export async function requireAdmin(): Promise<

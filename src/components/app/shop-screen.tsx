@@ -218,6 +218,7 @@ export function ShopScreen() {
     category: "themes" as const,
     action: () => handleThemeAction(t.themeId, t.cost),
     owned: ownedThemes.includes(t.themeId),
+    maxedOut: false,
   }));
 
   const handleBuy = async (item: ShopItem) => {

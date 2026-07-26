@@ -89,6 +89,8 @@ export const api = {
           course: { id: string; titleBn: string; icon: string; color: string; slug: string };
           unit: { id: string; titleBn: string };
           progress: { status: string; stars: number; score: number };
+          contentMatches?: Array<{ field: string; value: string }>;
+          matchType?: "title" | "content";
         }>;
         count: number;
       }>(`/api/lessons/search?q=${encodeURIComponent(q)}`),
