@@ -3015,3 +3015,43 @@ Upgraded the OTP email template to a premium, fully responsive design:
 ### GitHub Version Control
 - All code changes committed and pushed to `main` branch
 - Latest commit includes: enhanced email template, Dockerfile fix (prisma db push with || true), bun.lock update with nodemailer
+
+---
+
+## Phase 23 — Production Database Seeded + Full Live Verification
+
+### QA Methodology
+- GitHub synced, seed endpoint pushed (commit `451f741`)
+- Live site tested via curl — all endpoints verified
+
+### What Was Done
+
+#### 1. Admin Seed API with First-Run Support
+Modified `POST /api/admin/seed` to support two auth modes:
+- **Admin session** — for re-seeding after initial setup
+- **SEED_SECRET env var** — for first-run seeding when no admin exists yet (chicken-and-egg fix)
+- Set `SEED_SECRET=ArSikhiSeed2024!Initial` in Coolify env vars
+
+#### 2. Production Database Seeded Successfully
+Called the seed endpoint on the live site — results:
+- **4 courses** (Book 1-4)
+- **48 lessons** (4 courses × 3 units × 4 lessons)
+- **46 vocabulary words** (greetings, family, food, deen, objects, people, verbs, adjectives, numbers, colors, animals, body)
+- **8 achievements** (first-lesson, streak-7, streak-30, gems-100, level-5, level-10, vocab-50, perfect-lesson)
+- **17 users** (admin, demo learner, 15 bot competitors for leaderboard)
+
+#### 3. Full Live Verification
+All endpoints tested and working on https://arabic.ailearnersbd.com:
+- ✅ HTTP 200 — App serving
+- ✅ Demo login (learner@arabicsikhi.com / demo1234) — রহমান লার্নার, gems: 120, level: 4
+- ✅ Admin login (admin@arabicsikhi.com / admin123) — Administrator, role: admin
+- ✅ Courses API — 4 courses with full lesson tree
+- ✅ Achievements API — 8 achievements
+- ✅ OTP email sending via Brevo — emails are being sent!
+- ✅ Signup works — new users can create accounts via OTP
+
+### App is FULLY LIVE and FUNCTIONAL at https://arabic.ailearnersbd.com
+
+### GitHub Version Control
+- Latest commit: `451f741` — Seed endpoint with SEED_SECRET support
+- All changes pushed to `main` branch
