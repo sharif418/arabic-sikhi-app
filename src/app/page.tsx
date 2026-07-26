@@ -8,6 +8,7 @@ import { ScreenRouter } from "@/components/app/screen-router";
 import { StreakMilestoneWatcher } from "@/components/app/streak-milestone-watcher";
 import { OfflineIndicator } from "@/components/app/offline-indicator";
 import { InstallPrompt } from "@/components/app/install-prompt";
+import { StreakRecoveryDialog } from "@/components/app/streak-recovery-dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +81,7 @@ export default function Home() {
       <OfflineIndicator />
       <ScreenRouter />
       {user && <StreakMilestoneWatcher streak={user.streak} />}
+      {user && <StreakRecoveryDialog streak={user.streak} lastActiveDate={user.lastActiveDate} />}
       <InstallPrompt />
     </div>
   );

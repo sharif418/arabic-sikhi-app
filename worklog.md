@@ -3255,3 +3255,44 @@ Enhanced the bottom navigation with notification badges:
 
 ### GitHub Version Control
 - Latest commit pushed to `main` branch
+
+---
+
+## Phase 29 — Verse of the Day + Streak Recovery Dialog
+
+### QA Methodology
+- GitHub synced at `0dd238c` (Phase 28)
+- Live site verified: HTTP 200, login OK, 4 courses, 5 daily challenge questions, 46 vocab words
+- Lint: 0 errors, 0 warnings
+
+### New Features Added
+
+#### 1. Quran Verse of the Day (Home Screen)
+New `VerseOfTheDay` component on the home screen:
+- **7 curated short Quranic verses** with Arabic text + Bengali translation + surah/ayah reference
+- Includes: "إِنَّ مَعَ الْعُسْرِ يُسْرًا" (সূরা আশ-শারহ ৬), "وَقُل رَّبِّ زِدْنِي عِلْمًا" (ত্বাহা ১১৪), and more
+- **Deterministic rotation**: Verse changes daily based on day-of-year
+- **TTS audio**: Tap the verse or volume button to hear Arabic pronunciation
+- **Glass card design**: Emerald glow blur, BookOpen icon, surah:ayah label
+- Positioned between Daily Challenge and Word of the Day
+
+#### 2. Streak Recovery Welcome-Back Dialog
+New `StreakRecoveryDialog` component:
+- Shows a premium "স্বাগতম!" (Welcome back!) dialog for returning users
+- **Trigger conditions**: User has 3+ day streak AND was last active before today AND hasn't seen it this session
+- **Sunset gradient header** with animated flame emoji (spring entrance)
+- Shows current streak count with flame icon
+- "✅ আপনার স্ট্রিক সুরক্ষিত আছে!" reassurance message
+- "আজ লেসন সম্পন্ন করে স্ট্রিক বাড়ান" call-to-action
+- "চালিয়ে যান →" button to dismiss
+- Session-based: Only shows once per browser session (sessionStorage)
+- 1.5-second delay after page load for natural feel
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Verse of the Day: 7 verses, TTS audio, daily rotation, glass card design
+- ✅ Streak recovery: conditional display, premium modal, session-based
+- ✅ Both components integrated into home/page
+
+### GitHub Version Control
+- Latest commit pushed to `main` branch

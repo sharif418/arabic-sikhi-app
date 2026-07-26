@@ -19,6 +19,7 @@ import { useSpeech } from "@/hooks/use-speech";
 import { useNotifications } from "@/hooks/use-notifications";
 import { DailyChallenge } from "./daily-challenge";
 import { WeeklyGoalTracker } from "./weekly-goal-tracker";
+import { VerseOfTheDay } from "./verse-of-the-day";
 
 export function HomeScreen() {
   const { data, isLoading } = useQuery({ queryKey: ["courses"], queryFn: api.courses.list });
@@ -59,6 +60,9 @@ export function HomeScreen() {
 
       {/* Daily Challenge */}
       <DailyChallenge />
+
+      {/* Verse of the Day */}
+      <VerseOfTheDay />
 
       {/* Word of the Day */}
       <DailyWord />
