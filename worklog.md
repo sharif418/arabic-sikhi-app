@@ -2976,3 +2976,42 @@ In the meantime, the demo login (password-based) works for existing accounts. Ne
 - ✅ Deployment status: `finished`
 - ✅ TypeScript: 0 errors
 - ✅ ESLint: 0 errors, 0 warnings
+
+---
+
+## Phase 22 — SMTP Configuration + Email Template Enhancement
+
+### SMTP Configuration
+- Set 5 SMTP environment variables in Coolify (Brevo):
+  - `SMTP_HOST`: smtp-relay.brevo.com
+  - `SMTP_PORT`: 587
+  - `SMTP_USER`: b35062001@smtp-brevo.com
+  - `SMTP_PASS`: [configured]
+  - `SMTP_FROM`: Arabic Sikhi <noreply@arabic.ailearnersbd.com>
+
+### Email Template Enhancement
+Upgraded the OTP email template to a premium, fully responsive design:
+- Table-based layout for maximum email client compatibility (Gmail, Outlook, Apple Mail)
+- Gradient accent bar at top of card (emerald → green → gold)
+- Icon badge (🔐) with gradient background
+- Expiry notice box (amber themed, "⏱ এই কোডটি ১০ মিনিটের জন্য বৈধ")
+- Security reassurance text in Bengali
+- Preheader text (hidden preview snippet for inbox)
+- Improved typography with Noto Sans Bengali fallback
+- Professional footer with copyright
+
+### Deployment Status
+- App is **LIVE** at https://arabic.ailearnersbd.com (HTTP 200)
+- Next.js frontend serving correctly
+- **Database connection issue**: The app container cannot reach the PostgreSQL database container. This is a Coolify Docker networking issue.
+- Multiple deployment attempts with different DATABASE_URL formats (internal UUID hostname, server IP + public port, host.docker.internal)
+- The `prisma db push` command in the Dockerfile CMD runs with `|| true` so it doesn't block app startup, but the database tables don't exist
+
+### Manual Steps Required in Coolify UI
+1. **Connect the database to the app**: In the Coolify UI, go to the `arabic-sikhi-app` application → Settings → Databases → Attach the `arabic-sikhi-db` database. This will automatically set the `DATABASE_URL` environment variable with the correct internal Docker network hostname.
+2. **Redeploy** after attaching the database.
+3. **Seed the database**: After successful deployment with DB connection, run the seed script to populate courses, lessons, vocabulary, and demo users.
+
+### GitHub Version Control
+- All code changes committed and pushed to `main` branch
+- Latest commit includes: enhanced email template, Dockerfile fix (prisma db push with || true), bun.lock update with nodemailer
