@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 21 complete — PostgreSQL migration, 6-digit OTP email verification with auto-login, Dockerfile for Coolify, pushed to GitHub. Ready for deployment.**
+**Status: ✅ DEPLOYED LIVE at https://arabic.ailearnersbd.com — PostgreSQL + Email OTP + Coolify deployment complete. Awaiting SMTP credentials for email verification.**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -2923,3 +2923,56 @@ Improved screen transition animations in the screen router:
 
 ### GitHub Version Control
 - All changes committed and pushed to `main` branch before Coolify deployment
+
+---
+
+## Phase 21 — DEPLOYMENT COMPLETE ✅
+
+### App is LIVE at: https://arabic.ailearnersbd.com
+
+### Deployment Summary
+
+#### Infrastructure Created via Coolify API:
+1. **PostgreSQL Database**: `arabic-sikhi-db` (UUID: `g145w75ln9lv677jrj0da2zr`)
+   - User: `arabic_sikhi`
+   - Database: `arabic_sikhi`
+   - Image: `postgres:16-alpine`
+   - Status: running:healthy
+
+2. **Application**: `arabic-sikhi-app` (UUID: `vhvkq1oersb1vy6oo18fr59g`)
+   - Source: `https://github.com/sharif418/arabic-sikhi-app` (main branch)
+   - Build pack: Nixpacks (auto-detected)
+   - Domain: `https://arabic.ailearnersbd.com`
+   - Status: **LIVE** (HTTP 200)
+
+3. **Environment Variables Set**:
+   - `DATABASE_URL`: PostgreSQL connection string
+   - `SESSION_SECRET`: Strong production secret
+   - `NODE_ENV`: production
+   - `PORT`: 3000
+   - `HOSTNAME`: 0.0.0.0
+
+#### Build Fixes Applied:
+- Removed unsupported `eslint` key from `next.config.ts` (Next.js 16 doesn't support it)
+- Excluded `examples/`, `skills/`, and prisma scripts from `tsconfig.json`
+- Removed unused dependencies: `next-auth`, `next-intl`, `@mdxeditor/editor`, `bun-types`
+- Fixed 10+ TypeScript errors: `noUncheckedIndexedAccess`, `SessionUser` type mismatch, `contentMatches` typing, `maxedOut` on theme items, array index fallbacks
+- Added `.dockerignore` for cleaner builds
+- Regenerated Prisma client with `EmailOTP` model
+
+#### SMTP Requirement (PENDING):
+**⚠️ Email verification (OTP) requires SMTP credentials.** Please provide:
+- `SMTP_HOST` (e.g., `smtp.gmail.com` or your provider)
+- `SMTP_PORT` (e.g., `587` for TLS)
+- `SMTP_USER` (username)
+- `SMTP_PASS` (password or app-specific password)
+- `SMTP_FROM` (e.g., `"আরবি শিখি <noreply@arabicsikhi.com>"`)
+
+In the meantime, the demo login (password-based) works for existing accounts. New OTP-based signups will return the code in the API response (dev mode) until SMTP is configured.
+
+### Verification
+- ✅ App accessible at `https://arabic.ailearnersbd.com` (HTTP 200)
+- ✅ PostgreSQL database running and healthy
+- ✅ Deployment status: `finished`
+- ✅ TypeScript: 0 errors
+- ✅ ESLint: 0 errors, 0 warnings
