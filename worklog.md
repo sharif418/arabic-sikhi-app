@@ -3055,3 +3055,43 @@ All endpoints tested and working on https://arabic.ailearnersbd.com:
 ### GitHub Version Control
 - Latest commit: `451f741` — Seed endpoint with SEED_SECRET support
 - All changes pushed to `main` branch
+
+---
+
+## Phase 24 — Daily Challenge + Friends Leaderboard
+
+### QA Methodology
+- GitHub synced at `ae27b14` (Phase 23 — production DB seeded)
+- Live site verified: HTTP 200, login OK, courses OK, OTP sending OK
+- Lint: 0 errors, 0 warnings (maintained clean)
+
+### New Features Added
+
+#### 1. Daily Challenge (Rapid-Fire Vocab Quiz)
+- **API**: `GET /api/daily-challenge` returns 5 random vocab words as match-the-meaning questions, deterministically shuffled by date. `POST /api/daily-challenge` completes the challenge and awards bonus rewards.
+- **Rewards**: 20 XP (scaled by accuracy) + 5 gems (3 bonus for perfect)
+- **Completion tracking**: Uses `UserProgress` with special lessonId format `daily-YYYY-MM-DD`
+- **UI**: Full-screen challenge player on home screen with:
+  - Sunset gradient card on home with "🎯 আজকের ডেইলি চ্যালেঞ্জ"
+  - Progress bar, question counter, correct count badge
+  - Arabic word with TTS audio, 4 Bengali options
+  - Animated transitions between questions
+  - Completion screen with gold gradient + rewards display
+  - "Already completed" state with green check
+- **1-hour stale time** — challenge data cached client-side
+
+#### 2. Friends-Only Leaderboard
+- **API**: `GET /api/leaderboard/friends` — ranks only the user's followed friends + themselves, sorted by weekly XP
+- **UI**: Global/Friends toggle (🌍 গ্লোবাল / 👥 বন্ধুরা) on the leaderboard screen
+- League selector and podium hidden in friends mode
+- Same `RankRow` component used for both views
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Daily Challenge: API, UI, completion tracking, rewards
+- ✅ Friends Leaderboard: API, toggle, rendering
+- ✅ All code maintains type safety
+
+### GitHub Version Control
+- Latest commit: `5112420` — Phase 24
+- All changes pushed to `main` branch
