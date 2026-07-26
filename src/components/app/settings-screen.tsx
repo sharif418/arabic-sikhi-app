@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useThemeStore, THEMES, type ThemeId } from "@/lib/stores/theme-store";
 import { ThemePreviewModal } from "./theme-preview-modal";
+import { useOfflineLessons } from "@/hooks/use-offline-lessons";
+import { Download, Trash2, Loader2 } from "lucide-react";
 
 export function SettingsScreen() {
   const { back } = useNav();
@@ -120,6 +122,11 @@ export function SettingsScreen() {
           </div>
         </Section>
 
+        {/* Offline */}
+        <Section title="অফলাইন">
+          <OfflineCacheRow />
+        </Section>
+
         {/* About */}
         <Section title="সম্পর্কে">
           <Row icon={<Info className="h-4 w-4" />} label="অ্যাপ সংস্করণ">
@@ -142,6 +149,39 @@ export function SettingsScreen() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Offline Cache Row ---------- */
+function OfflineCacheRow() {
+  const { cachedCount, isCaching, clearCache } = useOfflineLessons(null);
+
+  return (
+    <div className="px-3.5 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Download className={cn("h-4 w-4", isCaching ? "text-primary animate-pulse" : "text-muted-foreground")} />
+        <div className="flex-1">
+          <p className="font-bengali text-sm font-semibold">অফলাইন লেসন ক্যাশ</p>
+          <p className="font-bengali text-[10px] text-muted-foreground mt-0.5">
+            {cachedCount > 0
+              ? `${cachedCount}টি লেসন ক্যাশ করা আছে — অফলাইনে শিখুন`
+              : "লেসন খুললে স্বয়ংক্রিয়ভাবে ক্যাশ হবে"}
+          </p>
+        </div>
+        {isCaching && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+      </div>
+      {cachedCount > 0 && (
+        <button
+          onClick={() => {
+            clearCache();
+            toast.success("অফলাইন ক্যাশ মুছে ফেলা হয়েছে");
+          }}
+          className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive tap-scale"
+        >
+          <Trash2 className="h-3 w-3" /> ক্যাশ মুছুন
+        </button>
+      )}
     </div>
   );
 }

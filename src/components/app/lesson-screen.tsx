@@ -15,6 +15,7 @@ import { HeartIcon, GemIcon, XpIcon, StarIcon } from "@/components/icons/game-ic
 import { cn } from "@/lib/utils";
 import type { Exercise } from "@/lib/types";
 import { toast } from "sonner";
+import { useOfflineLessons } from "@/hooks/use-offline-lessons";
 
 type Phase = "intro" | "playing" | "correct" | "wrong" | "complete";
 
@@ -23,6 +24,8 @@ export function LessonScreen({ lessonId }: { lessonId: string }) {
     queryKey: ["lesson", lessonId],
     queryFn: () => api.lessons.get(lessonId),
   });
+  // Pre-cache this lesson for offline use
+  useOfflineLessons(lessonId);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("intro");
   const [correctCount, setCorrectCount] = useState(0);

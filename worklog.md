@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 19 complete — Friend activity feed (timeline of friends' lessons+vocab) + auth rate limiting (login 5/min, signup 3/5min), 0 lint warnings, pushed to GitHub**
+**Status: ✅ Phase 20 complete — Offline lesson pre-caching (auto-cache on open, settings management) + enhanced page transitions, 0 lint warnings, pushed to GitHub**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -2820,3 +2820,59 @@ This prevents brute-force password attacks and account creation abuse.
 ### GitHub Version Control
 - Previous commit: `cbb74ac` (Phase 18)
 - Phase 19 committed and pushed to `main` branch
+
+---
+
+## Phase 20 (Cron Review Round 18) — Offline Lesson Caching + Enhanced Transitions
+
+### QA Methodology
+- GitHub synced at `242514a` (Phase 19 — friend activity feed + rate limiting)
+- Lint: 0 errors, 0 warnings (maintained clean)
+- Data integrity: 216 vocab, 48 lessons, 17 users
+- Dev server OOM during browser (4GB sandbox)
+
+### New Features Added
+
+#### 1. Offline Lesson Pre-Caching (`src/hooks/use-offline-lessons.ts`)
+New hook that automatically caches lesson data in localStorage for offline access:
+- **Auto-caching**: When a user opens a lesson, it's automatically cached
+- **Storage**: Stores up to 3 lessons (lessonId, titleBn, exercises, timestamp) in localStorage
+- **Quota check**: Skips caching if serialized data exceeds 4MB (localStorage safety)
+- **Cache management**: `getCachedLesson(id)` retrieves cached data, `clearCache()` wipes all
+- **Cache count tracking**: Exposes `cachedCount` and `isCaching` state
+
+#### 2. Offline Cache Settings Row
+New "অফলাইন" section in settings:
+- Download icon (pulses while caching)
+- Shows cached lesson count: "{N}টি লেসন ক্যাশ করা আছে — অফলাইনে শিখুন"
+- Or "লেসন খুললে স্বয়ংক্রিয়ভাবে ক্যাশ হবে" when empty
+- Spinner during active caching
+- "ক্যাশ মুছুন" button (destructive) to clear all cached lessons
+
+#### 3. Lesson Screen Integration
+The `LessonScreen` component now calls `useOfflineLessons(lessonId)` to automatically cache the lesson when opened. This happens transparently in the background without any user action.
+
+#### 4. Enhanced Page Transitions
+Improved screen transition animations in the screen router:
+- Smoother easing curve: `[0.16, 1, 0.3, 1]` (premium ease-out)
+- Increased duration: 0.25s (from 0.2s)
+- Increased slide distance: 12px (from 8px)
+- Created `PageTransition` wrapper component for reusable transitions
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Offline caching: auto-caches on lesson open, localStorage quota check, clear functionality
+- ✅ Settings: offline cache row with count, spinner, clear button
+- ✅ Page transitions: smoother easing + duration
+- ✅ All code maintains type safety
+
+### Architecture
+- `src/hooks/use-offline-lessons.ts` — auto-caching hook with localStorage
+- `src/components/app/settings-screen.tsx` — OfflineCacheRow component
+- `src/components/app/lesson-screen.tsx` — integrated useOfflineLessons hook
+- `src/components/app/screen-router.tsx` — enhanced transition easing
+- `src/components/app/page-transition.tsx` — reusable transition wrapper
+
+### GitHub Version Control
+- Previous commit: `242514a` (Phase 19)
+- Phase 20 committed and pushed to `main` branch
