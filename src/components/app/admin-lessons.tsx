@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight, BookOpen, ListChecks } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ExerciseEditor } from "./exercise-editor";
+import type { Exercise } from "@/lib/types";
 
 interface AdminLesson {
   id: string;
@@ -46,6 +48,7 @@ export function AdminLessons() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<AdminLesson | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingExercises, setEditingExercises] = useState<AdminLesson | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -183,6 +186,13 @@ export function AdminLessons() {
                                   </div>
                                 </div>
                                 <button
+                                  onClick={() => setEditingExercises(lesson)}
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/20 tap-scale"
+                                  title="অনুশীলন সম্পাদনা"
+                                >
+                                  <ListChecks className="h-3 w-3" />
+                                </button>
+                                <button
                                   onClick={() => setEditing(lesson)}
                                   className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 tap-scale"
                                 >
@@ -221,6 +231,18 @@ export function AdminLessons() {
             setCreating(false);
             setEditing(null);
           }}
+        />
+      )}
+
+      {/* Exercise editor dialog */}
+      {editingExercises && (
+        <ExerciseEditor
+          exercises={editingExercises.exercises as Exercise[]}
+          onSave={async (exercises) => {
+            await api.admin.lessons.update(editingExercises.id, { exercises });
+            queryClient.invalidateQueries({ queryKey: ["admin-lessons"] });
+          }}
+          onClose={() => setEditingExercises(null)}
         />
       )}
     </div>

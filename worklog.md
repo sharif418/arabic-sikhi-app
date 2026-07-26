@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 17 complete — 100% clean lint (0 errors, 0 warnings, was 85+34), lesson content search (deep exercise JSON search), pushed to GitHub**
+**Status: ✅ Phase 18 complete — Visual exercise editor (6 exercise types, RTL Arabic inputs, admin integration), 0 lint warnings, pushed to GitHub**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -2704,3 +2704,55 @@ Enhanced the lesson search API (`/api/lessons/search`) to search within lesson e
 ### GitHub Version Control
 - Previous commit: `3081d1e` (Phase 16 — audit)
 - Phase 17 changes committed and pushed to `main` branch
+
+---
+
+## Phase 18 (Cron Review Round 16) — Visual Exercise Editor
+
+### QA Methodology
+- GitHub synced at `4b645a9` (Phase 17 — 100% clean lint)
+- Lint: 0 errors, 0 warnings (maintained clean)
+- Data integrity: 216 vocab, 48 lessons, 17 users
+- Dev server OOM during browser (4GB sandbox)
+
+### New Feature: Visual Exercise Editor (`src/components/app/exercise-editor.tsx`)
+A full visual editor for building and editing lesson exercises via UI — replaces the previous raw JSON approach:
+
+#### Editor Capabilities
+- **6 exercise types supported**: Multiple Choice, Match Pairs, Build Sentence, Fill Blank, Listen & Choose, Translate
+- **Add/remove exercises**: Type picker grid (6 buttons with icons + Bengali labels), delete button per exercise
+- **Reorder exercises**: Up/down arrow buttons for each exercise
+- **Exercise counter**: Shows total count in the dialog title
+- **Save/cancel**: Save button calls `api.admin.lessons.update()` with the full exercises array
+
+#### Per-Type Field Editors
+Each exercise type has tailored form fields:
+- **Multiple Choice**: Arabic word (RTL), options (textarea, one per line), correct answer index
+- **Match Pairs**: Dynamic pairs (Arabic left = Bengali right), add/remove pair buttons
+- **Build Sentence**: Tokens (textarea, one per line), correct answer string
+- **Fill Blank**: Sentence with `___` placeholder, correct answer, options
+- **Listen & Choose**: Arabic audio text, English options, correct answer index
+- **Translate**: Arabic word, Arabic options, correct answer index
+
+All Arabic inputs use `dir="rtl"` and `font-arabic` for proper rendering.
+
+#### Admin Integration
+- Added a teal "exercise editor" button (ListChecks icon) to each lesson row in the admin lessons tab
+- Clicking opens the ExerciseEditor dialog with the lesson's current exercises
+- Saving updates the lesson via `api.admin.lessons.update(id, { exercises })` and invalidates the query
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Exercise editor: 6 types with proper RTL Arabic inputs
+- ✅ Admin lessons tab: exercise editor button integrated
+- ✅ All exercises properly typed using the `Exercise` discriminated union from `lib/types`
+
+### Architecture
+- `src/components/app/exercise-editor.tsx` — self-contained editor with type-specific field components
+- `src/components/app/admin-lessons.tsx` — integrated exercise editor button + dialog
+- `src/lib/types/index.ts` — Exercise discriminated union (consumed by editor)
+- Uses `api.admin.lessons.update()` for persistence
+
+### GitHub Version Control
+- Previous commit: `4b645a9` (Phase 17)
+- Phase 18 committed and pushed to `main` branch
