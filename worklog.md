@@ -2,7 +2,7 @@
 
 ## Project Status
 
-**Status: ✅ Phase 18 complete — Visual exercise editor (6 exercise types, RTL Arabic inputs, admin integration), 0 lint warnings, pushed to GitHub**
+**Status: ✅ Phase 19 complete — Friend activity feed (timeline of friends' lessons+vocab) + auth rate limiting (login 5/min, signup 3/5min), 0 lint warnings, pushed to GitHub**
 
 A premium, mobile-first, gamified Quranic Arabic learning web app (PWA-style) built for the As-Sunnah Foundation. Rendered as a single `/` route with a state-driven screen stack (Zustand) to support back navigation within a mobile shell.
 
@@ -2756,3 +2756,67 @@ All Arabic inputs use `dir="rtl"` and `font-arabic` for proper rendering.
 ### GitHub Version Control
 - Previous commit: `4b645a9` (Phase 17)
 - Phase 18 committed and pushed to `main` branch
+
+---
+
+## Phase 19 (Cron Review Round 17) — Friend Activity Feed + Auth Rate Limiting
+
+### QA Methodology
+- GitHub synced at `cbb74ac` (Phase 18 — visual exercise editor)
+- Lint: 0 errors, 0 warnings (maintained clean)
+- Data integrity: 216 vocab, 48 lessons, 17 users
+- Dev server OOM during browser (4GB sandbox)
+
+### New Features Added
+
+#### 1. Friend Activity Feed API (`/api/friends/feed`)
+New endpoint that returns a merged timeline of friends' recent activities:
+- Fetches the user's following list
+- Gets recent lesson completions by followed users (up to 20, with lesson title, icon, XP, stars)
+- Gets recent vocabulary reviews by followed users (up to 10, with Arabic word + Bengali meaning)
+- Merges and sorts by timestamp (most recent first)
+- Returns up to 20 activities with user info (name, league, avatar) and timestamp
+
+#### 2. Activity Feed Tab (Friends Screen)
+New third tab "কার্যকলাপ" (Activity) on the friends screen:
+- Shows a timeline of friends' recent lesson completions and vocabulary learning
+- Lesson activities: friend name + "লেসন সম্পন্ন করেছেন" + lesson icon/title + stars + XP badge
+- Vocab activities: friend name + "নতুন শব্দ শিখেছেন" + Arabic word = Bengali meaning
+- Relative timestamps (এইমাত্র, X মিনিট আগে, X ঘন্টা আগে, X দিন আগে)
+- Friend avatar with league badge
+- Empty state: "কোনো কার্যকলাপ নেই"
+- Staggered animations
+- 3-column tab layout (সাজেশন / ফলোয়িং / কার্যকলাপ)
+
+#### 3. Rate Limiting on Auth Endpoints (AUDIT-ARCH-1 Critical fix)
+New `src/lib/api/rate-limit.ts` utility with in-memory rate limiting:
+- `rateLimit(identifier, maxRequests, windowMs)` — returns 429 response if exceeded
+- `getClientIP(req)` — extracts IP from X-Forwarded-For or X-Real-IP headers
+- Auto-cleanup of expired entries every 5 minutes
+- Bengali error message: "অনেকবার চেষ্টা করেছেন। কিছুক্ষণ পরে আবার চেষ্টা করুন।"
+- Retry-After header set on 429 responses
+
+Applied to:
+- **Login** (`/api/auth/login`): 5 attempts per minute per IP
+- **Signup** (`/api/auth/signup`): 3 attempts per 5 minutes per IP
+
+This prevents brute-force password attacks and account creation abuse.
+
+### Verification Results
+- ✅ Lint: 0 errors, 0 warnings
+- ✅ Friend feed API: merges lesson + vocab activities, sorted by timestamp
+- ✅ Activity tab: timeline with lesson/vocab activities, relative timestamps, empty state
+- ✅ Rate limiting: login (5/min), signup (3/5min), Bengali error messages, Retry-After header
+- ✅ All code maintains type safety
+
+### Architecture
+- `src/app/api/friends/feed/route.ts` — merged activity timeline (lessons + vocab)
+- `src/lib/api/rate-limit.ts` — in-memory rate limiter with IP tracking
+- `src/app/api/auth/login/route.ts` — rate limited (5/min)
+- `src/app/api/auth/signup/route.ts` — rate limited (3/5min)
+- `src/components/app/friends-screen.tsx` — 3-tab layout with ActivityTab component
+- `src/lib/api/client.ts` — added `api.friends.feed()` typed method
+
+### GitHub Version Control
+- Previous commit: `cbb74ac` (Phase 18)
+- Phase 19 committed and pushed to `main` branch

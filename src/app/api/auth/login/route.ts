@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { rateLimit, getClientIP } from "@/lib/api/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -10,6 +11,11 @@ const loginSchema = z.object({
 });
 
 export const POST = apiHandler(async (req) => {
+  // Rate limit: 5 login attempts per minute per IP
+  const ip = getClientIP(req);
+  const limited = rateLimit(`login:${ip}`, 5, 60 * 1000);
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) return fail("Invalid input", 422);

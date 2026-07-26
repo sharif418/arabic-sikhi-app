@@ -10,8 +10,9 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LEAGUES } from "@/lib/stores/game-store";
+import { StarIcon } from "@/components/icons/game-icons";
 
-type Tab = "suggestions" | "following";
+type Tab = "suggestions" | "following" | "activity";
 
 export function FriendsScreen() {
   const { back } = useNav();
@@ -37,7 +38,7 @@ export function FriendsScreen() {
         </div>
 
         {/* Tabs */}
-        <div className="relative mt-3 grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/10">
+        <div className="relative mt-3 grid grid-cols-3 gap-1 p-1 rounded-xl bg-white/10">
           <button
             onClick={() => setTab("suggestions")}
             className={cn(
@@ -55,6 +56,15 @@ export function FriendsScreen() {
             )}
           >
             ফলোয়িং
+          </button>
+          <button
+            onClick={() => setTab("activity")}
+            className={cn(
+              "py-1.5 rounded-lg text-xs font-bold transition-all tap-scale",
+              tab === "activity" ? "bg-white text-emerald-700" : "text-white/80"
+            )}
+          >
+            কার্যকলাপ
           </button>
         </div>
 
@@ -76,8 +86,10 @@ export function FriendsScreen() {
       <div className="flex-1 overflow-y-auto premium-scroll p-3">
         {tab === "suggestions" ? (
           <SuggestionsTab search={search} />
-        ) : (
+        ) : tab === "following" ? (
           <FollowingTab />
+        ) : (
+          <ActivityTab />
         )}
       </div>
     </div>
@@ -264,6 +276,102 @@ function FriendAvatar({ name, league }: { name: string; league: string }) {
           {leagueInfo.icon}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- Activity Tab ---------- */
+function ActivityTab() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["friend-feed"],
+    queryFn: api.friends.feed,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
+      </div>
+    );
+  }
+
+  const activities = data?.activities ?? [];
+
+  if (activities.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="text-5xl mb-2 opacity-50">📭</div>
+        <p className="font-bengali text-sm text-muted-foreground">কোনো কার্যকলাপ নেই</p>
+        <p className="font-bengali text-xs text-muted-foreground/70 mt-1">
+          বন্ধুদের অনুশীলন ও লেসন এখানে দেখা যাবে
+        </p>
+      </div>
+    );
+  }
+
+  function timeAgo(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "এইমাত্র";
+    if (mins < 60) return `${mins} মিনিট আগে`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} ঘন্টা আগে`;
+    const days = Math.floor(hours / 24);
+    return `${days} দিন আগে`;
+  }
+
+  return (
+    <div className="space-y-2">
+      {activities.map((act, i) => (
+        <motion.div
+          key={act.id}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.04 }}
+          className="rounded-2xl glass border border-border/50 p-3 flex items-center gap-3"
+        >
+          <FriendAvatar name={act.userName} league={act.userLeague} />
+          <div className="flex-1 min-w-0">
+            {act.type === "lesson" ? (
+              <>
+                <p className="font-bengali text-xs">
+                  <span className="font-bold">{act.userName}</span> লেসন সম্পন্ন করেছেন
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-sm">{act.details.lessonIcon ?? "⭐"}</span>
+                  <span className="font-bengali text-[11px] font-semibold truncate">
+                    {act.details.lessonTitleBn}
+                  </span>
+                  {act.details.stars !== undefined && act.details.stars > 0 && (
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 3 }).map((_, idx) => (
+                        <StarIcon key={idx} className="h-2.5 w-2.5" filled={idx < (act.details.stars ?? 0)} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="font-bengali text-xs">
+                  <span className="font-bold">{act.userName}</span> নতুন শব্দ শিখেছেন
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="font-arabic text-sm font-bold">{act.details.arabicWord}</span>
+                  <span className="text-[10px] text-muted-foreground">=</span>
+                  <span className="font-bengali text-[11px] truncate">{act.details.banglaMeaning}</span>
+                </div>
+              </>
+            )}
+            <p className="text-[9px] text-muted-foreground mt-0.5">{timeAgo(act.timestamp)}</p>
+          </div>
+          {act.type === "lesson" && act.details.xpReward !== undefined && (
+            <div className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+              +{act.details.xpReward} XP
+            </div>
+          )}
+        </motion.div>
+      ))}
     </div>
   );
 }

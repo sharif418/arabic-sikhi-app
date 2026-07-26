@@ -224,6 +224,27 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ targetUserId }),
       }),
+    feed: () =>
+      request<{
+        activities: Array<{
+          id: string;
+          type: "lesson" | "vocab";
+          userId: string;
+          userName: string;
+          userLeague: string;
+          userAvatar: string | null;
+          timestamp: string;
+          details: {
+            lessonTitleBn?: string;
+            lessonIcon?: string;
+            xpReward?: number;
+            stars?: number;
+            arabicWord?: string;
+            banglaMeaning?: string;
+          };
+        }>;
+        count: number;
+      }>("/api/friends/feed"),
   },
   userStats: () =>
     request<{

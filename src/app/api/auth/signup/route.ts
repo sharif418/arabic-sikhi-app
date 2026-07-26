@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { apiHandler, fail, ok } from "@/lib/api/responses";
+import { rateLimit, getClientIP } from "@/lib/api/rate-limit";
 
 const signupSchema = z.object({
   name: z.string().min(2).max(60),
@@ -11,6 +12,11 @@ const signupSchema = z.object({
 });
 
 export const POST = apiHandler(async (req) => {
+  // Rate limit: 3 signup attempts per 5 minutes per IP
+  const ip = getClientIP(req);
+  const limited = rateLimit(`signup:${ip}`, 3, 5 * 60 * 1000);
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {
