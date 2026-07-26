@@ -27,7 +27,7 @@ export const GET = apiHandler(async () => {
   if (allVocab.length < 5) return fail("Not enough vocabulary", 500);
 
   // Deterministic shuffle based on date
-  const seed = today.split("-").reduce((a, b) => parseInt(a) + parseInt(b), 0);
+  const seed = today.split("-").reduce((sum, val) => sum + parseInt(val), 0);
   const shuffled = [...allVocab].sort((a, b) => {
     const hashA = (a.id.charCodeAt(0) + seed) % 100;
     const hashB = (b.id.charCodeAt(0) + seed) % 100;
