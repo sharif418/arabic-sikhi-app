@@ -1,17 +1,37 @@
 import { db } from "@/lib/db";
-import { getSessionUser } from "@/lib/session";
 import { hashPassword } from "@/lib/auth";
-import { apiHandler, ok } from "@/lib/api/responses";
+import { apiHandler, fail, ok } from "@/lib/api/responses";
 import { requireAdmin } from "@/lib/api/admin-guard";
+import { z } from "zod";
+
+const seedSchema = z.object({
+  secret: z.string().optional(),
+});
 
 /**
  * Seed the production database with courses, lessons, vocabulary, achievements,
- * and demo/admin users. Only callable by admins.
+ * and demo/admin users.
+ *
+ * Auth: Either an admin session OR a `secret` matching the SEED_SECRET env var
+ * (for first-run seeding when no admin user exists yet).
+ *
  * Idempotent — safe to run multiple times.
  */
-export const POST = apiHandler(async () => {
-  const guard = await requireAdmin();
-  if (!guard.ok) return guard.response;
+export const POST = apiHandler(async (req) => {
+  const body = await req.json().catch(() => ({}));
+  const parsed = seedSchema.safeParse(body);
+  if (!parsed.success) return fail("Invalid input", 422);
+
+  const { secret } = parsed.data;
+
+  // Check auth: admin session OR seed secret
+  const seedSecret = process.env.SEED_SECRET;
+  const hasValidSecret = seedSecret && secret === seedSecret;
+
+  if (!hasValidSecret) {
+    const guard = await requireAdmin();
+    if (!guard.ok) return guard.response;
+  }
 
   const results = {
     courses: 0,
