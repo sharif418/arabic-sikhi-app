@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 COPY prisma ./prisma/
 
-RUN npm install --legacy-peer-deps
+RUN npm install --include=dev --legacy-peer-deps
 
 # === Stage 2: Build ===
 FROM node:20-alpine AS builder
